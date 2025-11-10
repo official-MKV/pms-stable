@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import routers.users; print(''Backend code syntax is valid'')\")",
+      "Bash(python -m alembic:*)",
+      "Bash(python:*)",
+      "Bash(initiatives.py)",
+      "Bash(initiative_workflows.py)",
+      "Bash(timeout 5 python:*)",
+      "Bash(notifications.py)",
+      "Bash(echo:*)",
+      "Bash(backend/routers/goals.py)",
+      "Bash(dir:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker --version:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,915 @@
+"""
+Initiative Management API Router
+Based on CLAUDE.md specification with comprehensive initiative workflows
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from typing import List, Optional
+import uuid
+import os
+from datetime import datetime
+import json
+ 
+from database import get_db
+from models import Initiative, InitiativeStatus, InitiativeType, User
+from schemas.initiatives import (
+    InitiativeCreate, InitiativeUpdate, InitiativeStatusUpdate, InitiativeSubmission, InitiativeReview,
+    InitiativeExtensionRequest, InitiativeExtensionReview, Initiative as InitiativeSchema,
+    InitiativeWithAssignees, InitiativeSubmissionDetail, InitiativeDocument, InitiativeExtension,
+    InitiativeList, InitiativeStats, InitiativeUrgency, InitiativeAssignee
+)
+from schemas.auth import UserSession
+from utils.auth import get_current_user
+from utils.permissions import UserPermissions, SystemPermissions
+from utils.initiative_workflows import InitiativeWorkflowService
+
+router = APIRouter(prefix="/initiatives", tags=["initiatives"])
+
+@router.get("/debug")
+async def debug_endpoint():
+    """Simple debug endpoint to test basic router functionality"""
+    return {"message": "Initiatives router is working", "status": "ok"}
+
+@router.get("/debug-auth")
+async def debug_auth_endpoint(current_user: UserSession = Depends(get_current_user)):
+    """Debug endpoint with authentication"""
+    return {"message": "Auth working", "user": current_user.user_id}
+
+@router.get("/debug-db")
+async def debug_db_endpoint(
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Debug endpoint with DB dependency"""
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    return {"message": "DB working", "user_name": user.name if user else "Not found"}
+
+@router.post("/debug-create")
+async def debug_create_endpoint(initiative_data: InitiativeCreate):
+    """Debug initiative creation schema only"""
+    return {
+        "message": "Schema validation passed",
+        "initiative_title": initiative_data.title,
+        "team_head_id": str(initiative_data.team_head_id) if initiative_data.team_head_id else None,
+        "urgency": initiative_data.urgency.value,
+        "type": initiative_data.type.value
+    }
+
+def get_permission_service(db: Session = Depends(get_db)) -> UserPermissions:
+    return UserPermissions(db)
+
+def get_initiative_service(db: Session = Depends(get_db)) -> InitiativeWorkflowService:
+    return InitiativeWorkflowService(db)
+
+
+@router.get("/", response_model=InitiativeList)
+async def get_initiatives(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=100),
+    status_filter: Optional[List[InitiativeStatus]] = Query(None),
+    initiative_type: Optional[InitiativeType] = None,
+    urgency_filter: Optional[InitiativeUrgency] = None,
+    assigned_to_me: bool = False,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    List initiatives with visibility rules based on permissions:
+    - assigned_to_me=true: Only initiatives assigned to user (My Initiatives)
+    - assigned_to_me=false: All initiatives user can access based on permissions
+        - With initiative_view_all permission: See all initiatives in system
+        - Without initiative_view_all: Only see initiatives you created, are assigned to, or lead
+    """
+    from models import InitiativeAssignment
+    from sqlalchemy.orm import joinedload
+
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Build base query with proper joins
+    query = db.query(Initiative).options(
+        joinedload(Initiative.assignments).joinedload(InitiativeAssignment.user),
+        joinedload(Initiative.creator),
+        joinedload(Initiative.team_head)
+    )
+
+    user_initiative_ids_subquery = db.query(InitiativeAssignment.initiative_id).filter(InitiativeAssignment.user_id == user.id).subquery()
+
+    # Apply visibility filter
+    if assigned_to_me:
+        # My Initiatives: Only initiatives assigned to this user
+        query = query.filter(Initiative.id.in_(user_initiative_ids_subquery))
+    else:
+        # All Initiatives: Depends on permissions
+        if "initiative_view_all" not in current_user.permissions:
+            # Get user's supervisees (users who report to this user)
+            supervisee_ids_subquery = db.query(User.id).filter(User.supervisor_id == user.id).subquery()
+            supervisee_initiative_ids_subquery = db.query(InitiativeAssignment.initiative_id).filter(
+                InitiativeAssignment.user_id.in_(supervisee_ids_subquery)
+            ).subquery()
+
+            # Regular users: See initiatives they're involved with + supervisees' initiatives
+            visibility_filter = or_(
+                Initiative.created_by == user.id,  # Created by user
+                Initiative.id.in_(user_initiative_ids_subquery),  # Assigned to user
+                Initiative.team_head_id == user.id,  # User is team head
+                Initiative.created_by.in_(supervisee_ids_subquery),  # Created by supervisees
+                Initiative.id.in_(supervisee_initiative_ids_subquery)  # Assigned to supervisees
+            )
+            query = query.filter(visibility_filter)
+        # If user has initiative_view_all, no filter applied - see everything
+
+    # Apply status filter
+    if status_filter:
+        query = query.filter(Initiative.status.in_(status_filter))
+
+    # Apply type filter
+    if initiative_type:
+        query = query.filter(Initiative.type == initiative_type)
+
+    # Apply urgency filter
+    if urgency_filter:
+        query = query.filter(Initiative.urgency == urgency_filter)
+
+    # Order by creation date (newest first)
+    query = query.order_by(Initiative.created_at.desc())
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination
+    offset = (page - 1) * per_page
+    initiatives = query.offset(offset).limit(per_page).all()
+
+    print(f"\n=== DEBUG: Found {total} total initiatives, returning {len(initiatives)} ===")
+
+    # Convert to InitiativeWithAssignees with proper assignment data
+    initiative_list = []
+    for initiative in initiatives:
+        # Convert initiative to dict, excluding assignments to avoid validation error
+        initiative_dict = {
+            'id': initiative.id,
+            'title': initiative.title,
+            'description': initiative.description,
+            'type': initiative.type,
+            'urgency': initiative.urgency,
+            'due_date': initiative.due_date,
+            'goal_id': initiative.goal_id,
+            'status': initiative.status,
+            'score': initiative.score,
+            'feedback': initiative.feedback,
+            'team_head_id': initiative.team_head_id,
+            'created_by': initiative.created_by,
+            'reviewed_at': initiative.reviewed_at,
+            'created_at': initiative.created_at,
+            'updated_at': initiative.updated_at,
+            'creator_name': initiative.creator.name if initiative.creator else None,
+            'team_head_name': initiative.team_head.name if initiative.team_head else None,
+            'goal_title': initiative.goal.title if initiative.goal else None,
+            'assignee_count': len(initiative.assignments),
+            'submission_count': len(initiative.submissions) if hasattr(initiative, 'submissions') else 0,
+            'document_count': len(initiative.documents) if hasattr(initiative, 'documents') else 0,
+            'extension_count': len(initiative.extensions) if hasattr(initiative, 'extensions') else 0,
+        }
+
+        # Manually populate assignments with user data
+        assignments = []
+        for assignment in initiative.assignments:
+            if assignment.user:  # Ensure user is loaded
+                assignments.append(InitiativeAssignee(
+                    user_id=assignment.user_id,
+                    user_name=assignment.user.name,
+                    user_email=assignment.user.email,
+                    assigned_at=assignment.created_at
+                ))
+
+        initiative_dict['assignments'] = assignments
+        initiative_data = InitiativeWithAssignees(**initiative_dict)
+        initiative_list.append(initiative_data)
+
+    return InitiativeList(
+        initiatives=initiative_list,
+        total=total,
+        page=page,
+        per_page=per_page
+    )
+
+
+@router.post("/upload-document", response_model=InitiativeDocument)
+async def upload_initiative_document(
+    file: UploadFile = File(...),
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Upload a document that can be attached to initiatives
+    Returns document ID that can be used when creating initiatives or submissions
+    """
+    from models import InitiativeDocument as InitiativeDocumentModel
+    import os
+    import uuid as uuid_module
+    from datetime import datetime
+
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Validate file type and size
+    if file.size and file.size > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(status_code=413, detail="File too large (max 10MB)")
+
+    allowed_types = {
+        "application/pdf", "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg", "image/png", "image/gif", "text/plain"
+    }
+
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="File type not allowed")
+
+    # Create uploads directory if it doesn't exist
+    upload_dir = "uploads/initiative_documents"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate unique filename
+    file_extension = os.path.splitext(file.filename)[1] if file.filename else ""
+    unique_filename = f"{uuid_module.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to save file")
+
+    # Create document record (without initiative_id initially)
+    document = InitiativeDocumentModel(
+        file_name=file.filename or unique_filename,
+        file_path=file_path,
+        uploaded_by=user.id
+        # initiative_id will be None initially and set when attached to an initiative
+    )
+
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    return InitiativeDocument.from_orm(document)
+
+@router.post("/", response_model=InitiativeSchema)
+async def create_initiative(
+    initiative_data: InitiativeCreate,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    permission_service: UserPermissions = Depends(get_permission_service),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Create new initiative with scope validation and assignment
+    Scope-limited assignment: Can only assign users within creator's organizational scope
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # if not permission_service.user_has_permission(user, SystemPermissions.INITIATIVE_CREATE):
+    #     raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    try:
+        # Use initiative service to create with validation
+        initiative = initiative_service.create_initiative(
+            creator=user,
+            initiative_data=initiative_data.dict(),
+            assignee_ids=initiative_data.assignee_ids,
+            team_head_id=initiative_data.team_head_id,
+            document_ids=initiative_data.document_ids
+        )
+
+        return InitiativeSchema.from_orm(initiative)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/stats", response_model=InitiativeStats)
+async def get_initiative_stats(
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Get initiative statistics and analytics
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get user's visible initiatives
+    initiatives = initiative_service.get_user_initiatives(user)
+
+    # Calculate statistics
+    total_initiatives = len(initiatives)
+
+    by_status = {}
+    for initiative_status in InitiativeStatus:
+        by_status[initiative_status.value] = sum(1 for initiative in initiatives if initiative.status == initiative_status)
+
+    by_type = {}
+    for initiative_type in InitiativeType:
+        by_type[initiative_type.value] = sum(1 for initiative in initiatives if initiative.type == initiative_type)
+
+    # Calculate urgency statistics
+    by_urgency = {}
+    for initiative_urgency in InitiativeUrgency:
+        by_urgency[initiative_urgency.value] = sum(1 for initiative in initiatives if initiative.urgency == initiative_urgency)
+
+    # Count overdue initiatives
+    overdue_initiatives = sum(1 for initiative in initiatives if initiative.status == InitiativeStatus.OVERDUE)
+
+    # Calculate average score and completion rate
+    scored_initiatives = [initiative for initiative in initiatives if initiative.score is not None]
+    average_score = sum(initiative.score for initiative in scored_initiatives) / len(scored_initiatives) if scored_initiatives else None
+
+    completed_or_approved = sum(1 for initiative in initiatives
+                              if initiative.status in [InitiativeStatus.PENDING_REVIEW, InitiativeStatus.APPROVED])
+    completion_rate = (completed_or_approved / total_initiatives * 100) if total_initiatives > 0 else 0
+
+    return InitiativeStats(
+        total_initiatives=total_initiatives,
+        by_status=by_status,
+        by_type=by_type,
+        by_urgency=by_urgency,
+        overdue_initiatives=overdue_initiatives,
+        average_score=average_score,
+        completion_rate=completion_rate
+    )
+
+@router.get("/{initiative_id}", response_model=InitiativeWithAssignees)
+async def get_initiative(
+    initiative_id: uuid.UUID,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Get initiative details with assignees
+    Visibility based on involvement and permissions
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if user can see this initiative
+    if not initiative_service.get_initiative_visibility(user, initiative_id):
+        raise HTTPException(status_code=403, detail="Cannot access this initiative")
+
+    initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+    if not initiative:
+        raise HTTPException(status_code=404, detail="Initiative not found")
+
+    # Get assignees
+    assignees = []
+    for assignment in initiative.assignments:
+        # Compute full name from separate fields
+        name_parts = [assignment.user.first_name]
+        if assignment.user.middle_name:
+            name_parts.append(assignment.user.middle_name)
+        name_parts.append(assignment.user.last_name)
+        full_name = " ".join(name_parts)
+
+        assignees.append({
+            "user_id": str(assignment.user.id),
+            "user_name": full_name,
+            "user_email": assignment.user.email,
+            "assigned_at": assignment.created_at
+        })
+
+    initiative_data = InitiativeWithAssignees.from_orm(initiative)
+    initiative_data.assignees = assignees
+
+    return initiative_data
+
+@router.put("/{initiative_id}", response_model=InitiativeSchema)
+async def update_initiative(
+    initiative_id: uuid.UUID,
+    initiative_data: InitiativeUpdate,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    permission_service: UserPermissions = Depends(get_permission_service),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Update initiative details
+    Only initiative creator can update
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not permission_service.user_has_permission(user, SystemPermissions.INITIATIVE_EDIT):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+    if not initiative:
+        raise HTTPException(status_code=404, detail="Initiative not found")
+
+    # Only creator can update initiative details
+    if initiative.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only initiative creator can update initiative details")
+
+    # Update fields
+    update_data = initiative_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(initiative, field, value)
+
+    db.commit()
+    db.refresh(initiative)
+
+    return InitiativeSchema.from_orm(initiative)
+
+@router.put("/{initiative_id}/status", response_model=InitiativeSchema)
+async def update_initiative_status(
+    initiative_id: uuid.UUID,
+    status_data: InitiativeStatusUpdate,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Update initiative status (start/complete)
+    Different rules for different status transitions
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        if status_data.status == InitiativeStatus.ONGOING:
+            success = initiative_service.start_initiative(initiative_id, user.id)
+        else:
+            # Other status updates require different logic
+            initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+            if not initiative:
+                raise HTTPException(status_code=404, detail="Initiative not found")
+
+            initiative.status = status_data.status
+            db.commit()
+            success = True
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to update initiative status")
+
+        initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+        return InitiativeSchema.from_orm(initiative)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{initiative_id}/submit", response_model=InitiativeSubmissionDetail)
+async def submit_initiative(
+    initiative_id: uuid.UUID,
+    submission_data: InitiativeSubmission,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Submit initiative report and documents
+    For group initiatives, only team head can submit
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        success = initiative_service.submit_initiative(
+            initiative_id, user.id, submission_data.report, submission_data.document_ids
+        )
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to submit initiative")
+
+        # Get submission details
+        from models import InitiativeSubmission as SubmissionModel
+        submission = db.query(SubmissionModel).filter(SubmissionModel.initiative_id == initiative_id).first()
+
+        return InitiativeSubmissionDetail.from_orm(submission)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{initiative_id}/submission")
+async def get_initiative_submission(
+    initiative_id: uuid.UUID,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get initiative submission details including report and documents
+    Only initiative creator can access submission for review
+    """
+    from models import InitiativeSubmission as SubmissionModel, InitiativeDocument
+    from sqlalchemy.orm import joinedload
+
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+    if not initiative:
+        raise HTTPException(status_code=404, detail="Initiative not found")
+
+    # Only creator can see submission
+    if initiative.created_by != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only initiative creator can access submission details"
+        )
+
+    # Get submission with documents
+    submission = db.query(SubmissionModel).options(
+        joinedload(SubmissionModel.submitted_by_user)
+    ).filter(SubmissionModel.initiative_id == initiative_id).first()
+
+    if not submission:
+        raise HTTPException(status_code=404, detail="No submission found for this initiative")
+
+    # Get documents
+    documents = db.query(InitiativeDocument).filter(
+        InitiativeDocument.initiative_id == initiative_id
+    ).all()
+
+    # Get submitter info
+    submitter = db.query(User).filter(User.id == submission.submitted_by).first()
+
+    return {
+        "id": str(submission.id),
+        "report": submission.report,
+        "submitted_by": str(submission.submitted_by),
+        "submitter_name": submitter.name if submitter else None,
+        "submitted_at": submission.submitted_at,
+        "documents": [
+            {
+                "id": str(doc.id),
+                "file_name": doc.file_name,
+                "file_path": doc.file_path,
+                "uploaded_by": str(doc.uploaded_by),
+                "uploaded_at": doc.uploaded_at
+            }
+            for doc in documents
+        ]
+    }
+
+@router.post("/{initiative_id}/review", response_model=InitiativeSchema)
+async def review_initiative(
+    initiative_id: uuid.UUID,
+    review_data: InitiativeReview,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Review and score completed initiative
+    Only initiative creator can review
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        success = initiative_service.review_initiative(
+            initiative_id, user.id, review_data.score, review_data.feedback, review_data.approved
+        )
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to review initiative")
+
+        initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+        return InitiativeSchema.from_orm(initiative)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{initiative_id}/extension-request", response_model=InitiativeExtension)
+async def request_extension(
+    initiative_id: uuid.UUID,
+    extension_data: InitiativeExtensionRequest,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Request deadline extension
+    Only assignees or team head can request
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        extension = initiative_service.request_extension(
+            initiative_id, user.id, extension_data.new_due_date, extension_data.reason
+        )
+
+        return InitiativeExtension.from_orm(extension)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/{initiative_id}/extension/{extension_id}", response_model=InitiativeExtension)
+async def review_extension(
+    initiative_id: uuid.UUID,
+    extension_id: uuid.UUID,
+    review_data: InitiativeExtensionReview,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Approve/deny extension request
+    Only initiative creator can review extensions
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        success = initiative_service.review_extension(
+            extension_id, user.id, review_data.status == "approved", review_data.reason
+        )
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to review extension")
+
+        from models import InitiativeExtension as ExtensionModel
+        extension = db.query(ExtensionModel).filter(ExtensionModel.id == extension_id).first()
+
+        return InitiativeExtension.from_orm(extension)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{initiative_id}/submissions", response_model=List[InitiativeSubmissionDetail])
+async def get_initiative_submissions(
+    initiative_id: uuid.UUID,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    View initiative submission details
+    Only visible to initiative creator and assignees
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if user can see this initiative
+    if not initiative_service.get_initiative_visibility(user, initiative_id):
+        raise HTTPException(status_code=403, detail="Cannot access this initiative")
+
+    from models import InitiativeSubmission as SubmissionModel
+    submissions = db.query(SubmissionModel).filter(SubmissionModel.initiative_id == initiative_id).all()
+
+    return [InitiativeSubmissionDetail.from_orm(submission) for submission in submissions]
+
+@router.post("/{initiative_id}/documents", response_model=InitiativeDocument)
+async def upload_initiative_document(
+    initiative_id: uuid.UUID,
+    file: UploadFile = File(...),
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Upload document for initiative
+    Only assignees can upload documents
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if user can access this initiative
+    if not initiative_service.get_initiative_visibility(user, initiative_id):
+        raise HTTPException(status_code=403, detail="Cannot access this initiative")
+
+    # Create uploads directory if it doesn't exist
+    upload_dir = "uploads/initiatives"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate unique filename
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else ''
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    # Save file
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    # Create document record
+    from models import InitiativeDocument as DocumentModel
+    document = DocumentModel(
+        initiative_id=initiative_id,
+        file_name=file.filename,
+        file_path=file_path,
+        uploaded_by=user.id
+    )
+
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    return InitiativeDocument.from_orm(document)
+
+@router.get("/documents/{document_id}/download")
+async def download_initiative_document(
+    document_id: uuid.UUID,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """Download an initiative document"""
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get document
+    from models import InitiativeDocument as DocumentModel
+    document = db.query(DocumentModel).filter(DocumentModel.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Check if user can access the initiative this document belongs to
+    if document.initiative_id:
+        if not initiative_service.get_initiative_visibility(user, document.initiative_id):
+            raise HTTPException(status_code=403, detail="Cannot access this document")
+
+    # Check if file exists
+    if not os.path.exists(document.file_path):
+        raise HTTPException(status_code=404, detail="File not found on server")
+
+    # Return file
+    return FileResponse(
+        path=document.file_path,
+        filename=document.file_name,
+        media_type='application/octet-stream'
+    )
+
+@router.get("/assigned", response_model=InitiativeList)
+async def get_assigned_initiatives(
+    status_filter: Optional[List[InitiativeStatus]] = Query(None),
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    initiative_service: InitiativeWorkflowService = Depends(get_initiative_service)
+):
+    """
+    Get user's assigned initiatives
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get user's assigned initiatives
+    from models import InitiativeAssignment
+    user_initiative_ids = db.query(InitiativeAssignment.initiative_id).filter(InitiativeAssignment.user_id == user.id).all()
+    user_initiative_ids = [iid[0] for iid in user_initiative_ids]
+
+    query = db.query(Initiative).filter(Initiative.id.in_(user_initiative_ids))
+
+    if status_filter:
+        query = query.filter(Initiative.status.in_(status_filter))
+
+    initiatives = query.all()
+
+    return InitiativeList(
+        initiatives=[InitiativeSchema.from_orm(initiative) for initiative in initiatives],
+        total=len(initiatives),
+        page=1,
+        per_page=len(initiatives)
+    )
+
+@router.get("/created", response_model=InitiativeList)
+async def get_created_initiatives(
+    status_filter: Optional[List[InitiativeStatus]] = Query(None),
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get initiatives user created
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    query = db.query(Initiative).filter(Initiative.created_by == user.id)
+
+    if status_filter:
+        query = query.filter(Initiative.status.in_(status_filter))
+
+    initiatives = query.all()
+
+    return InitiativeList(
+        initiatives=[InitiativeSchema.from_orm(initiative) for initiative in initiatives],
+        total=len(initiatives),
+        page=1,
+        per_page=len(initiatives)
+    )
+
+@router.get("/review-queue", response_model=InitiativeList)
+async def get_review_queue(
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get initiatives pending review by current user
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get initiatives created by user that are pending review
+    initiatives = db.query(Initiative).filter(
+        Initiative.created_by == user.id,
+        Initiative.status == InitiativeStatus.PENDING_REVIEW
+    ).all()
+
+    return InitiativeList(
+        initiatives=[InitiativeSchema.from_orm(initiative) for initiative in initiatives],
+        total=len(initiatives),
+        page=1,
+        per_page=len(initiatives)
+    )
+
+@router.get("/user/{user_id}")
+async def get_user_initiatives(
+    user_id: int,
+    status: Optional[str] = None,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all initiatives for a specific user (assigned to them or created by them)
+    Requires appropriate permissions if viewing another user's initiatives
+    """
+    # Check permissions
+    if user_id != current_user.user_id:
+        # Check if user has permission to view other users' initiatives
+        if "initiative_view_all" not in current_user.permissions:
+            raise HTTPException(
+                status_code=403,
+                detail="Insufficient permissions to view other users' initiatives"
+            )
+
+    # Get user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get initiatives assigned to the user
+    from models import InitiativeAssignment
+
+    assigned_initiative_ids = db.query(InitiativeAssignment.initiative_id).filter(
+        InitiativeAssignment.user_id == user_id
+    ).all()
+    assigned_initiative_ids = [i[0] for i in assigned_initiative_ids]
+
+    # Build query
+    query = db.query(Initiative).filter(
+        or_(
+            Initiative.id.in_(assigned_initiative_ids),
+            Initiative.created_by == user_id
+        )
+    )
+
+    # Apply status filter if provided
+    if status:
+        query = query.filter(Initiative.status == status)
+
+    # Order by due date
+    initiatives = query.order_by(Initiative.due_date.desc()).all()
+
+    # Convert to response format
+    initiative_list = []
+    for initiative in initiatives:
+        initiative_dict = {
+            "id": str(initiative.id),
+            "title": initiative.title,
+            "description": initiative.description,
+            "type": initiative.type,
+            "status": initiative.status.value if hasattr(initiative.status, 'value') else initiative.status,
+            "score": initiative.score,
+            "feedback": initiative.feedback,
+            "due_date": initiative.due_date.isoformat() if initiative.due_date else None,
+            "created_at": initiative.created_at.isoformat() if initiative.created_at else None,
+            "created_by": initiative.created_by
+        }
+        initiative_list.append(initiative_dict)
+
+    return initiative_list
