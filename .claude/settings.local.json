@@ -14,7 +14,11 @@
       "Bash(docker-compose build:*)",
       "Bash(docker --version:*)",
       "Bash(find:*)",
-      "Bash(NUL)"
+      "Bash(NUL)",
+      "Bash(cat:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
