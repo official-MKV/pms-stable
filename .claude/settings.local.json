@@ -12,7 +12,9 @@
       "Bash(backend/routers/goals.py)",
       "Bash(dir:*)",
       "Bash(docker-compose build:*)",
-      "Bash(docker --version:*)"
+      "Bash(docker --version:*)",
+      "Bash(find:*)",
+      "Bash(NUL)"
     ],
     "deny": [],
     "ask": []
