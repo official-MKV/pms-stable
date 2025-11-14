@@ -1,35 +1,25 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
-# Use PowerShell as default shell
-SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+SHELL ["powershell", "-Command", "$ErrorActionPreference='Stop';"]
 
-# Download and install Node.js and update PATH
+# Install Node
 RUN Invoke-WebRequest -Uri https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi -OutFile node.msi ; \
-    Start-Process msiexec.exe -ArgumentList '/i', 'node.msi', '/quiet', '/qn', '/norestart' -Wait ; \
-    Remove-Item node.msi -Force ; \
-    [Environment]::SetEnvironmentVariable('PATH', \"$env:PATH;C:\\Program Files\\nodejs\", [EnvironmentVariableTarget]::Machine)
+    Start-Process msiexec.exe -ArgumentList '/i','node.msi','/quiet','/norestart' -Wait ; \
+    Remove-Item node.msi
 
-# Refresh PATH for current session and verify Node.js and npm
-RUN $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') ; \
-    node --version ; \
-    npm --version
+# Refresh PATH
+RUN $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH','Machine') ; \
+    node --version ; npm --version
 
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if present) and install dependencies
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy app code and build Next.js
 COPY . .
 RUN npm run build
 
-# Expose port
 EXPOSE 3000
-ENV NODE_ENV=production
 
-# Add node_modules/.bin to PATH so local binaries are accessible
-ENV PATH="C:/app/node_modules/.bin:$env:PATH"
-
-# Start the app using npx to ensure Next.js runs
-CMD ["powershell", "-NoProfile", "-Command", "npx next start --port 3000 --hostname 0.0.0.0"]
+# Start next.js directly from node_modules
+CMD ["cmd.exe", "/C", "node_modules\\.bin\\next.cmd start -p 3000 -H 0.0.0.0"]
