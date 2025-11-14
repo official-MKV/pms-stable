@@ -1,4 +1,14 @@
-FROM node:20-windowsservercore-ltsc2019
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Download and install Node.js
+RUN Invoke-WebRequest -Uri https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi -OutFile node.msi ; \
+    Start-Process msiexec.exe -ArgumentList '/i', 'node.msi', '/quiet', '/qn', '/norestart' -Wait ; \
+    Remove-Item node.msi -Force
+
+# Verify Node.js and npm installation
+RUN node --version ; npm --version
 
 WORKDIR /app
 
