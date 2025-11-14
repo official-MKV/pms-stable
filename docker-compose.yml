@@ -68,23 +68,23 @@ services:
   # Optional: Nginx reverse proxy
   # Note: Consider using IIS instead for better Windows integration
   # To disable nginx, comment out this section and access services directly
-  nginx:
-    image: nginx:1.27-windowsservercore-ltsc2019
-    container_name: pms_nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:C:/nginx/conf/nginx.conf:ro
-      - ./ssl:C:/nginx/ssl:ro
-      - backend_uploads:C:/nginx/uploads
-    depends_on:
-      frontend:
-        condition: service_started
-      backend:
-        condition: service_healthy
-    networks:
-      - pms_network
+  # nginx:
+  #   image: nginx:1.27-windowsservercore-ltsc2019
+  #   container_name: pms_nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:C:/nginx/conf/nginx.conf:ro
+  #     - ./ssl:C:/nginx/ssl:ro
+  #     - backend_uploads:C:/nginx/uploads
+  #   depends_on:
+  #     frontend:
+  #       condition: service_started
+  #     backend:
+  #       condition: service_healthy
+  #   networks:
+  #     - pms_network
 
 volumes:
   backend_uploads:
