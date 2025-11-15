@@ -1,25 +1,28 @@
-FROM mcr.microsoft.com/windows/servercore:ltsc2019
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2019
 
-SHELL ["powershell", "-Command", "$ErrorActionPreference='Stop';"]
+# Copy Node.js from official image
+COPY --from=mcr.microsoft.com/windows/servercore:ltsc2019 ["C:/Program Files/nodejs", "C:/Program Files/nodejs"]
 
-# Install Node
-RUN Invoke-WebRequest -Uri https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi -OutFile node.msi ; \
-    Start-Process msiexec.exe -ArgumentList '/i','node.msi','/quiet','/norestart' -Wait ; \
-    Remove-Item node.msi
+# Set PATH for Node.js
+ENV PATH="C:\\Program Files\\nodejs;%PATH%"
 
-# Refresh PATH
-RUN $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH','Machine') ; \
-    node --version ; npm --version
-
+# Set working directory
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install --legacy-peer-deps
 
+# Copy application files
 COPY . .
+
+# Build the application
 RUN npm run build
 
+# Expose port
 EXPOSE 3000
 
-# Start next.js directly from node_modules
-CMD ["cmd.exe", "/C", "node_modules\\.bin\\next.cmd start -p 3000 -H 0.0.0.0"]
+# Start the application
+CMD ["node", "./node_modules/next/dist/bin/next", "start", "-p", "3000", "-H", "0.0.0.0"]
