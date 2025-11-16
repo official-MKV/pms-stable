@@ -15,11 +15,33 @@ RUN $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH','Machine') +
 # Verify installation
 RUN node --version ; npm --version
 
+# Configure npm for better network reliability
+RUN npm config set fetch-retries 5 ; \
+    npm config set fetch-retry-mintimeout 20000 ; \
+    npm config set fetch-retry-maxtimeout 120000 ; \
+    npm config set fetch-timeout 300000
+
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files and install dependencies with retry logic
 COPY package*.json ./
-RUN npm install --legacy-peer-deps --package-lock=false
+
+# Try npm install with retries
+RUN $maxAttempts = 3; \
+    $attempt = 0; \
+    $success = $false; \
+    while (-not $success -and $attempt -lt $maxAttempts) { \
+        $attempt++; \
+        Write-Host \"Attempt $attempt of $maxAttempts...\"; \
+        try { \
+            npm install --legacy-peer-deps --package-lock=false --verbose; \
+            $success = $true; \
+        } catch { \
+            if ($attempt -eq $maxAttempts) { throw } \
+            Write-Host \"Failed, retrying in 10 seconds...\"; \
+            Start-Sleep -Seconds 10; \
+        } \
+    }
 
 # Copy application code
 COPY . .
