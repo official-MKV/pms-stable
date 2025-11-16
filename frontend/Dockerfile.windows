@@ -1,4 +1,4 @@
-# Stage 1: Build stage with ServerCore (has full npm support)
+# Stage 1: Build stage with ServerCore
 FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS builder
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference='Stop';"]
@@ -15,7 +15,7 @@ RUN $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH','Machine') +
 # Verify installation
 RUN node --version ; npm --version
 
-# Configure npm with increased timeouts
+# Configure npm
 RUN npm config set fetch-retries 5 ; \
     npm config set fetch-retry-mintimeout 20000 ; \
     npm config set fetch-retry-maxtimeout 120000 ; \
@@ -28,41 +28,30 @@ COPY package.json ./
 COPY package-lock.json ./
 
 # Install dependencies
-RUN npm install --legacy-peer-deps --package-lock=false --loglevel verbose
+RUN npm install --legacy-peer-deps --package-lock=false
 
 # Copy application code
 COPY . .
 
-# Build Next.js application
+# Build Next.js
 RUN npm run build
 
-# Stage 2: Runtime stage with NanoServer (smaller image)
+# Stage 2: Runtime with NanoServer
 FROM mcr.microsoft.com/windows/nanoserver:ltsc2019
 
-# Copy Node.js from builder stage
+# Copy Node.js from builder
 COPY --from=builder ["C:/Program Files/nodejs", "C:/Program Files/nodejs"]
 
-# Set environment variables
 ENV PATH="C:\Program Files\nodejs;${PATH}"
 
 WORKDIR /app
 
-# Copy node_modules from builder stage
+# Copy required files (NO WILDCARDS!)
 COPY --from=builder /app/node_modules ./node_modules
-
-# Copy built application
 COPY --from=builder /app/.next ./.next
-
-# Copy public folder (if it exists)
 COPY --from=builder /app/public ./public
-
-# Copy package files individually (NO wildcards)
 COPY --from=builder /app/package.json ./package.json
-
-# Copy next config if it exists (handle both .js and .mjs)
-COPY --from=builder /app/next.config.* ./
 
 EXPOSE 3000
 
-# Start Next.js
 CMD ["node", "./node_modules/next/dist/bin/next", "start", "-p", "3000", "-H", "0.0.0.0"]
