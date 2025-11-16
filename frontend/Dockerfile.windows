@@ -15,7 +15,7 @@ RUN $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH','Machine') +
 # Verify installation
 RUN node --version ; npm --version
 
-# Configure npm for better network reliability
+# Configure npm with increased timeouts
 RUN npm config set fetch-retries 5 ; \
     npm config set fetch-retry-mintimeout 20000 ; \
     npm config set fetch-retry-maxtimeout 120000 ; \
@@ -23,25 +23,12 @@ RUN npm config set fetch-retries 5 ; \
 
 WORKDIR /app
 
-# Copy package files and install dependencies with retry logic
-COPY package*.json ./
+# Copy package files
+COPY package.json ./
+COPY package-lock.json ./
 
-# Try npm install with retries
-RUN $maxAttempts = 3; \
-    $attempt = 0; \
-    $success = $false; \
-    while (-not $success -and $attempt -lt $maxAttempts) { \
-        $attempt++; \
-        Write-Host \"Attempt $attempt of $maxAttempts...\"; \
-        try { \
-            npm install --legacy-peer-deps --package-lock=false --verbose; \
-            $success = $true; \
-        } catch { \
-            if ($attempt -eq $maxAttempts) { throw } \
-            Write-Host \"Failed, retrying in 10 seconds...\"; \
-            Start-Sleep -Seconds 10; \
-        } \
-    }
+# Install dependencies
+RUN npm install --legacy-peer-deps --package-lock=false --loglevel verbose
 
 # Copy application code
 COPY . .
@@ -63,10 +50,16 @@ WORKDIR /app
 # Copy node_modules from builder stage
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy built application and necessary files
+# Copy built application
 COPY --from=builder /app/.next ./.next
+
+# Copy public folder (if it exists)
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
+
+# Copy package files individually (NO wildcards)
+COPY --from=builder /app/package.json ./package.json
+
+# Copy next config if it exists (handle both .js and .mjs)
 COPY --from=builder /app/next.config.* ./
 
 EXPOSE 3000
