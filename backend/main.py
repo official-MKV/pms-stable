@@ -17,6 +17,7 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="http://localhost:
 
 # Strip whitespace from each origin
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS]
+print(CORS_ALLOWED_ORIGINS)
 
 # Log CORS configuration for debugging
 logger.info(f"CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
