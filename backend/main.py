@@ -7,11 +7,19 @@ from decouple import config
 
 # Enable debug logging
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 from database import create_tables
 from routers import auth, users, roles, organization, initiatives, goals, reviews, performance
 
+# Read CORS origins from environment variable, with fallback to .env file
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="http://localhost:3000").split(",")
+
+# Strip whitespace from each origin
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS]
+
+# Log CORS configuration for debugging
+logger.info(f"CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
 
 app = FastAPI(
     title="NIGCOMSAT PMS API",
