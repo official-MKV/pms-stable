@@ -1,8 +1,7 @@
 module.exports = {
   apps: [{
     name: 'pms-backend',
-    script: 'uvicorn',
-    args: 'main:app --host 0.0.0.0 --port 8000',
+    script: 'start_with_migrations.py',
     interpreter: 'python',
     cwd: 'C:/Users/vem/pms-stable/backend',
     env: {
