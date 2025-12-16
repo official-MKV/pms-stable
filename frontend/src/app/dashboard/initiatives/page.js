@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Plus, CheckSquare, Calendar, User, Users, MoreHorizontal, Edit, Trash2, Eye, FileText, Clock, Star, Search, Filter, X, Check, ChevronsUpDown, Download } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils"
 import { useAuth, PermissionGuard } from "@/lib/auth-context"
 import {
   useInitiatives,
+  useSuperviseeInitiatives,
   useCreateInitiative,
   useUpdateInitiativeStatus,
   useSubmitInitiative,
@@ -114,13 +115,14 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
     title: initiative?.title || "",
     description: initiative?.description || "",
-    type: initiative?.type || "individual",
-    urgency: initiative?.urgency || "medium",
+    type: initiative?.type || "INDIVIDUAL",
+    urgency: initiative?.urgency || "MEDIUM",
     due_date: initiative?.due_date ? initiative.due_date.split('T')[0] : "",
     assignee_ids: initiative?.assignee_ids || [],
     team_head_id: initiative?.team_head_id || "",
     goal_id: initiative?.goal_id || "none"
   })
+  const [createForMyself, setCreateForMyself] = useState(true) // Checkbox state
   const [attachedFiles, setAttachedFiles] = useState([])
   const [goalOpen, setGoalOpen] = useState(false)
   const [assigneeOpen, setAssigneeOpen] = useState(false)
@@ -128,24 +130,92 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
   const { data: users = [] } = useUsers()
   const { data: goals = [] } = useGoals()
 
-  // Reset files when form opens/closes
+  // Get supervisees
+  const supervisees = useMemo(() => {
+    if (!user?.user_id || !users || users.length === 0) return []
+    return users.filter(u => u.supervisor_id === user.user_id && u.status === 'active')
+  }, [users, user?.user_id])
+
+  // Reset form when opening/closing
   useEffect(() => {
     if (!isOpen) {
       setAttachedFiles([])
+      setCreateForMyself(true)
+    } else {
+      // When opening, reset to default state
+      setCreateForMyself(true)
     }
   }, [isOpen])
 
   const handleSubmit = (e) => {
     e.preventDefault()
 
+    // Validate due date is in the future
+    const selectedDate = new Date(formData.due_date + 'T00:00:00')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (selectedDate < today) {
+      alert('Due date must be in the future')
+      return
+    }
+
     // Format the data for submission
+    let assigneeIds = []
+
+    // For individual initiatives
+    if (formData.type === 'INDIVIDUAL') {
+      if (createForMyself) {
+        // Assign to myself
+        if (!user.user_id) {
+          alert('User ID not found')
+          return
+        }
+        assigneeIds = [user.user_id]
+      } else {
+        // Assign to someone else (should be selected in formData.assignee_ids)
+        if (!formData.assignee_ids || formData.assignee_ids.length === 0 || !formData.assignee_ids[0]) {
+          alert('Please select an assignee')
+          return
+        }
+        assigneeIds = [formData.assignee_ids[0]]
+      }
+    }
+    // For group initiatives
+    else if (formData.type === 'GROUP') {
+      // Filter out any null values
+      const validAssignees = formData.assignee_ids.filter(id => id !== null && id !== undefined)
+
+      if (validAssignees.length < 2) {
+        alert('Please select at least 2 group members')
+        return
+      }
+      if (!formData.team_head_id) {
+        alert('Please select a team head')
+        return
+      }
+      assigneeIds = validAssignees
+    }
+
+    // Final validation - ensure no null values in assigneeIds
+    if (assigneeIds.some(id => !id || id === null)) {
+      alert('Invalid assignee selection. Please try again.')
+      return
+    }
+
     const submitData = {
-      ...formData,
-      due_date: formData.due_date + 'T23:59:59', // Set to end of day
-      assignee_ids: formData.type === 'individual' ? [formData.assignee_ids[0]] : formData.assignee_ids,
-      goal_id: formData.goal_id === 'none' ? null : formData.goal_id, // Convert "none" to null
+      title: formData.title,
+      description: formData.description,
+      type: formData.type,
+      urgency: formData.urgency,
+      due_date: formData.due_date + 'T23:59:59',
+      assignee_ids: assigneeIds,
+      team_head_id: formData.team_head_id || null,
+      goal_id: formData.goal_id === 'none' ? null : formData.goal_id,
       files: attachedFiles
     }
+
+    console.log('Submitting initiative:', submitData)
 
     onSubmit(submitData)
     onClose()
@@ -202,12 +272,18 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                 <Label htmlFor="type">Type</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value) => setFormData({
-                    ...formData,
-                    type: value,
-                    assignee_ids: [],
-                    team_head_id: ""
-                  })}
+                  onValueChange={(value) => {
+                    setFormData({
+                      ...formData,
+                      type: value,
+                      assignee_ids: [],
+                      team_head_id: ""
+                    })
+                    // Reset checkbox when switching to individual
+                    if (value === 'INDIVIDUAL') {
+                      setCreateForMyself(true)
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
@@ -228,25 +304,25 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">
+                    <SelectItem value="LOW">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-gray-400"></div>
                         Low
                       </div>
                     </SelectItem>
-                    <SelectItem value="medium">
+                    <SelectItem value="MEDIUM">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
                         Medium
                       </div>
                     </SelectItem>
-                    <SelectItem value="high">
+                    <SelectItem value="HIGH">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                         High
                       </div>
                     </SelectItem>
-                    <SelectItem value="urgent">
+                    <SelectItem value="URGENT">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-red-400"></div>
                         Urgent
@@ -262,6 +338,7 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                   type="date"
                   value={formData.due_date}
                   onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]}
                   required
                 />
               </div>
@@ -339,14 +416,111 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
               </Popover>
             </div>
 
-            {/* Unified Assignee Selection */}
-            <div className="grid gap-2">
-              <Label>
-                {formData.type === 'individual' ? 'Assignee' : 'Group Members'}
-              </Label>
+            {/* Individual Initiative Assignment */}
+            {formData.type === 'INDIVIDUAL' && (
+              <div className="grid gap-3">
+                {/* Checkbox for creating for myself */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="createForMyself"
+                    checked={createForMyself}
+                    onChange={(e) => {
+                      setCreateForMyself(e.target.checked)
+                      if (e.target.checked) {
+                        // Clear assignee selection when checking
+                        setFormData({ ...formData, assignee_ids: [] })
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="createForMyself" className="text-sm font-medium cursor-pointer">
+                    Create for myself
+                  </Label>
+                </div>
 
-              {/* Selected Assignees Display */}
-              {formData.assignee_ids.length > 0 && (
+                {/* Show assignee selection only if not creating for myself */}
+                {!createForMyself && (
+                  <div className="grid gap-2">
+                    <Label>Assign To <span className="text-red-500">*</span></Label>
+                    <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={assigneeOpen}
+                          className="w-full justify-between"
+                        >
+                          {formData.assignee_ids.length === 0 ? (
+                            "Search and select user..."
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-xs">
+                                  {availableUsers.find(u => u.id === formData.assignee_ids[0])?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate">
+                                {availableUsers.find(u => u.id === formData.assignee_ids[0])?.name || 'Selected'}
+                              </span>
+                            </div>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[500px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search users by name or email..." />
+                          <CommandEmpty>No user found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {availableUsers.map((userItem) => {
+                              const isSelected = formData.assignee_ids.includes(userItem.id)
+                              return (
+                                <CommandItem
+                                  key={userItem.id}
+                                  value={`${userItem.name} ${userItem.email}`}
+                                  onSelect={() => {
+                                    setFormData({ ...formData, assignee_ids: [userItem.id] })
+                                    setAssigneeOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      isSelected ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <Avatar className="h-6 w-6 mr-2">
+                                    <AvatarFallback className="text-xs">
+                                      {userItem.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex flex-col flex-1">
+                                    <span className="font-medium">{userItem.name}</span>
+                                    <span className="text-xs text-muted-foreground">{userItem.email}</span>
+                                    {userItem.job_title && (
+                                      <span className="text-xs text-muted-foreground">{userItem.job_title}</span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              )
+                            })}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Group Members Selection */}
+            {formData.type === 'GROUP' && (
+              <div className="grid gap-2">
+                <Label>Group Members</Label>
+
+                {/* Selected Assignees Display */}
+                {formData.assignee_ids.length > 0 && (
                 <div className="p-3 border rounded-lg bg-muted/50">
                   <div className="flex flex-wrap gap-2">
                     {formData.assignee_ids.map((userId) => {
@@ -380,96 +554,80 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                 </div>
               )}
 
-              {/* Searchable Assignee Selector */}
-              <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={assigneeOpen}
-                    className="w-full justify-between"
-                  >
-                    {formData.assignee_ids.length === 0 ? (
-                      "Search and select users..."
-                    ) : formData.type === 'individual' ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-xs">
-                            {availableUsers.find(u => u.id === formData.assignee_ids[0])?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">
-                          {availableUsers.find(u => u.id === formData.assignee_ids[0])?.name || 'Selected'}
-                        </span>
-                      </div>
-                    ) : (
-                      `${formData.assignee_ids.length} member${formData.assignee_ids.length > 1 ? 's' : ''} selected`
-                    )}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[500px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search users by name, email, or organization..." />
-                    <CommandEmpty>No user found.</CommandEmpty>
-                    <CommandGroup className="max-h-64 overflow-auto">
-                      {availableUsers.map((user) => {
-                        const isSelected = formData.assignee_ids.includes(user.id)
-                        return (
-                          <CommandItem
-                            key={user.id}
-                            value={`${user.name} ${user.email} ${user.organization_name || ''}`}
-                            onSelect={() => {
-                              if (formData.type === 'individual') {
-                                // Single selection for individual initiatives
-                                setFormData({ ...formData, assignee_ids: [user.id] })
-                                setAssigneeOpen(false)
-                              } else {
+                {/* Searchable Group Member Selector */}
+                <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={assigneeOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.assignee_ids.length === 0 ? (
+                        "Search and select group members..."
+                      ) : (
+                        `${formData.assignee_ids.length} member${formData.assignee_ids.length > 1 ? 's' : ''} selected`
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[500px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search users by name, email, or organization..." />
+                      <CommandEmpty>No user found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {availableUsers.map((userItem) => {
+                          const isSelected = formData.assignee_ids.includes(userItem.id)
+                          return (
+                            <CommandItem
+                              key={userItem.id}
+                              value={`${userItem.name} ${userItem.email} ${userItem.organization_name || ''}`}
+                              onSelect={() => {
                                 // Multi-selection for group initiatives
                                 if (isSelected) {
                                   setFormData({
                                     ...formData,
-                                    assignee_ids: formData.assignee_ids.filter(id => id !== user.id),
-                                    team_head_id: formData.team_head_id === user.id ? "" : formData.team_head_id
+                                    assignee_ids: formData.assignee_ids.filter(id => id !== userItem.id),
+                                    team_head_id: formData.team_head_id === userItem.id ? "" : formData.team_head_id
                                   })
                                 } else {
                                   setFormData({
                                     ...formData,
-                                    assignee_ids: [...formData.assignee_ids, user.id]
+                                    assignee_ids: [...formData.assignee_ids, userItem.id]
                                   })
                                 }
-                              }
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                isSelected ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <Avatar className="h-6 w-6 mr-2">
-                              <AvatarFallback className="text-xs">
-                                {user.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col flex-1">
-                              <span className="font-medium">{user.name}</span>
-                              <span className="text-xs text-muted-foreground">{user.email}</span>
-                              {user.organization_name && (
-                                <span className="text-xs text-muted-foreground">{user.organization_name}</span>
-                              )}
-                            </div>
-                          </CommandItem>
-                        )
-                      })}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  isSelected ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <Avatar className="h-6 w-6 mr-2">
+                                <AvatarFallback className="text-xs">
+                                  {userItem.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col flex-1">
+                                <span className="font-medium">{userItem.name}</span>
+                                <span className="text-xs text-muted-foreground">{userItem.email}</span>
+                                {userItem.organization_name && (
+                                  <span className="text-xs text-muted-foreground">{userItem.organization_name}</span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          )
+                        })}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
 
             {/* Team Head Selection for Group Initiatives */}
-            {formData.type === 'group' && formData.assignee_ids.length > 0 && (
+            {formData.type === 'GROUP' && formData.assignee_ids.length > 0 && (
               <div className="grid gap-2">
                 <Label htmlFor="team_head">Team Head</Label>
                 <Select
@@ -1108,6 +1266,16 @@ export default function InitiativesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [perPage] = useState(20)
 
+  const { data: users = [], isLoading: isLoadingUsers } = useUsers()
+
+  // Get supervisees for supervisor view
+  const supervisees = useMemo(() => {
+    if (!user?.user_id || !users || users.length === 0) return []
+    return users.filter(u => u.supervisor_id === user.user_id)
+  }, [users, user?.user_id])
+
+  const isSupervisor = supervisees.length > 0
+
   // Build params with filters
   const buildParams = (isMyTasks) => {
     const params = {
@@ -1136,10 +1304,22 @@ export default function InitiativesPage() {
 
   const { data: myInitiativesData, isLoading: myInitiativesLoading } = useInitiatives(myInitiativesParams)
   const { data: allInitiativesData, isLoading: allInitiativesLoading } = useInitiatives(allInitiativesParams)
+  const { data: superviseeInitiativesData = [], isLoading: superviseeInitiativesLoading, refetch: refetchSuperviseeInitiatives } = useSuperviseeInitiatives()
+
+  // Refetch supervisee initiatives when switching to team tab
+  useEffect(() => {
+    if (activeTab === "team-initiatives") {
+      refetchSuperviseeInitiatives()
+    }
+  }, [activeTab, refetchSuperviseeInitiatives])
 
   // Use data based on active tab
-  const isLoading = activeTab === 'my-initiatives' ? myInitiativesLoading : allInitiativesLoading
-  const initiativeData = activeTab === 'my-initiatives' ? myInitiativesData : allInitiativesData
+  const isLoading = activeTab === 'my-initiatives' ? myInitiativesLoading :
+                     activeTab === 'team-initiatives' ? superviseeInitiativesLoading :
+                     allInitiativesLoading
+  const initiativeData = activeTab === 'my-initiatives' ? myInitiativesData :
+                         activeTab === 'team-initiatives' ? { initiatives: superviseeInitiativesData, total: superviseeInitiativesData.length } :
+                         allInitiativesData
   const initiatives = initiativeData?.initiatives || []
   const totalInitiatives = initiativeData?.total || 0
   const totalPages = Math.ceil(totalInitiatives / perPage)
@@ -1588,10 +1768,22 @@ export default function InitiativesPage() {
 
       {/* Initiative Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="my-initiatives">My Initiatives ({myInitiativesData?.total || 0})</TabsTrigger>
+        <TabsList className={`grid w-full ${isSupervisor ? 'max-w-2xl grid-cols-3' : 'max-w-md grid-cols-2'}`}>
+          <TabsTrigger value="my-initiatives">
+            <User className="h-4 w-4 mr-2" />
+            My Initiatives ({myInitiativesData?.total || 0})
+          </TabsTrigger>
+          {isSupervisor && (
+            <TabsTrigger value="team-initiatives">
+              <Users className="h-4 w-4 mr-2" />
+              Team Initiatives ({superviseeInitiativesData?.length || 0})
+            </TabsTrigger>
+          )}
           <PermissionGuard permission="initiative_view_all">
-            <TabsTrigger value="all-initiatives">All Initiatives ({allInitiativesData?.total || 0})</TabsTrigger>
+            <TabsTrigger value="all-initiatives">
+              <CheckSquare className="h-4 w-4 mr-2" />
+              All Initiatives ({allInitiativesData?.total || 0})
+            </TabsTrigger>
           </PermissionGuard>
         </TabsList>
 
@@ -1655,6 +1847,114 @@ export default function InitiativesPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="team-initiatives" className="space-y-4">
+          {isSupervisor ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Initiatives</CardTitle>
+                <CardDescription>Initiatives created by or assigned to your team members</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(5)].map((_, i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : initiatives.length > 0 ? (
+                  <div className="space-y-4">
+                    {initiatives.map((initiative) => {
+                      const isPendingApproval = initiative.status === 'PENDING_APPROVAL'
+                      const createdBySupervisee = supervisees.some(s => s.id === initiative.created_by)
+
+                      return (
+                        <div key={initiative.id} className={cn(
+                          "border rounded-lg p-4",
+                          isPendingApproval && "border-yellow-300 bg-yellow-50"
+                        )}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold">{initiative.title}</h3>
+                                <Badge className={statusColors[initiative.status] || statusColors.ASSIGNED}>
+                                  {initiative.status?.replace('_', ' ') || 'Unknown'}
+                                </Badge>
+                                <Badge className={typeColors[initiative.type] || typeColors.INDIVIDUAL}>
+                                  {initiative.type}
+                                </Badge>
+                                <Badge variant="outline" className={urgencyColors[initiative.urgency?.toLowerCase()] || urgencyColors.medium}>
+                                  {initiative.urgency}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2">{initiative.description}</p>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <User className="h-4 w-4" />
+                                  <span>{initiative.creator_name || 'Unknown'}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{new Date(initiative.due_date).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-4 w-4" />
+                                  <span>{initiative.assignee_count || 0} assignee(s)</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {isPendingApproval && createdBySupervisee && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => {
+                                    setApprovingInitiative(initiative)
+                                    setIsApprovalOpen(true)
+                                  }}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  Review & Approve
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedInitiative(initiative)
+                                  setIsInitiativeDetailOpen(true)
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No team initiatives</h3>
+                    <p className="text-muted-foreground">Your team members haven't created any initiatives yet.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Not a supervisor</h3>
+                  <p className="text-muted-foreground">You don't have any team members reporting to you.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="all-initiatives" className="space-y-4">

@@ -797,6 +797,48 @@ async def download_initiative_document(
         media_type='application/octet-stream'
     )
 
+@router.get("/supervisees", response_model=List[InitiativeSchema])
+async def get_supervisee_initiatives(
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all initiatives belonging to the current user's supervisees
+    Returns initiatives created by or assigned to supervisees
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all supervisees
+    supervisees = db.query(User).filter(User.supervisor_id == user.id).all()
+    supervisee_ids = [s.id for s in supervisees]
+
+    if not supervisee_ids:
+        return []
+
+    # Get initiatives created by or assigned to supervisees
+    from models import InitiativeAssignment
+    from sqlalchemy.orm import joinedload
+
+    supervisee_initiative_ids_subquery = db.query(InitiativeAssignment.initiative_id).filter(
+        InitiativeAssignment.user_id.in_(supervisee_ids)
+    ).subquery()
+
+    initiatives = db.query(Initiative).options(
+        joinedload(Initiative.assignments).joinedload(InitiativeAssignment.user),
+        joinedload(Initiative.creator),
+        joinedload(Initiative.team_head)
+    ).filter(
+        or_(
+            Initiative.created_by.in_(supervisee_ids),  # Created by supervisees
+            Initiative.id.in_(supervisee_initiative_ids_subquery)  # Assigned to supervisees
+        )
+    ).order_by(Initiative.created_at.desc()).all()
+
+    return [InitiativeSchema.from_orm(initiative) for initiative in initiatives]
+
+
 @router.get("/assigned", response_model=InitiativeList)
 async def get_assigned_initiatives(
     status_filter: Optional[List[InitiativeStatus]] = Query(None),

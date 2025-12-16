@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import {
   Plus,
   Target,
@@ -84,10 +84,6 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
           <div className="space-y-2">
             <CardTitle className="text-lg font-semibold">{goal.title}</CardTitle>
             <div className="flex items-center gap-2">
-              <Badge className={`${typeColors[goal.type]} flex items-center gap-1.5`}>
-                <TypeIcon className="h-3.5 w-3.5" />
-                {goal.type}
-              </Badge>
               <Badge className={`${statusColors[goal.status]} flex items-center gap-1.5`}>
                 {goal.status}
               </Badge>
@@ -155,17 +151,45 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
 
 function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
-    title: goal?.title || "",
-    description: goal?.description || "",
-    type: goal?.type || "QUARTERLY",
-    evaluation_method: goal?.evaluation_method || "",
-    difficulty_level: goal?.difficulty_level || 3,
-    start_date: goal?.start_date || "",
-    end_date: goal?.end_date || "",
-    parent_goal_id: goal?.parent_goal_id || "",
+    title: "",
+    description: "",
+    type: "QUARTERLY",
+    evaluation_method: "",
+    difficulty_level: 3,
+    start_date: "",
+    end_date: "",
+    parent_goal_id: "",
   })
 
   const { data: goals = [] } = useGoals()
+
+  // Update form data when goal changes
+  useEffect(() => {
+    if (goal) {
+      setFormData({
+        title: goal.title || "",
+        description: goal.description || "",
+        type: goal.type || "QUARTERLY",
+        evaluation_method: goal.evaluation_method || "",
+        difficulty_level: goal.difficulty_level || 3,
+        start_date: goal.start_date || "",
+        end_date: goal.end_date || "",
+        parent_goal_id: goal.parent_goal_id || "",
+      })
+    } else {
+      // Reset form when creating new goal
+      setFormData({
+        title: "",
+        description: "",
+        type: "QUARTERLY",
+        evaluation_method: "",
+        difficulty_level: 3,
+        start_date: "",
+        end_date: "",
+        parent_goal_id: "",
+      })
+    }
+  }, [goal])
 
   const handleSubmit = (e) => {
     e.preventDefault()

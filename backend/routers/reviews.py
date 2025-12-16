@@ -3366,6 +3366,53 @@ async def create_trait(
         question_count=0
     )
 
+@router.delete("/traits/{trait_id}")
+async def delete_trait(
+    trait_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a performance trait
+    Only allows deletion if the trait is not used in any active review cycles
+    """
+    user_permissions = UserPermissions(db)
+
+    if "review_trait_manage" not in current_user.permissions:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete traits"
+        )
+
+    # Get the trait
+    trait = db.query(ReviewTrait).filter(ReviewTrait.id == trait_id).first()
+    if not trait:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trait not found"
+        )
+
+    # Check if trait is used in any active review cycles
+    active_cycle_count = db.query(ReviewCycleTrait).join(ReviewCycle).filter(
+        ReviewCycleTrait.trait_id == trait_id,
+        ReviewCycle.status.in_(['draft', 'active'])
+    ).count()
+
+    if active_cycle_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete trait. It is currently used in {active_cycle_count} active review cycle(s). Please complete or cancel those cycles first."
+        )
+
+    # Delete associated questions first
+    db.query(ReviewQuestion).filter(ReviewQuestion.trait_id == trait_id).delete()
+
+    # Delete the trait
+    db.delete(trait)
+    db.commit()
+
+    return {"message": "Trait deleted successfully"}
+
 @router.get("/traits/{trait_id}/questions", response_model=List[QuestionResponse])
 async def get_trait_questions(
     trait_id: str,
@@ -3458,7 +3505,7 @@ async def delete_question(
         )
 
     # Check if question is used in any active reviews
-    active_responses = db.query(ReviewResponseModel).filter(ReviewResponse.question_id == question_id).first()
+    active_responses = db.query(ReviewResponseModel).filter(ReviewResponseModel.question_id == question_id).first()
     if active_responses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

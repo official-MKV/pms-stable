@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import {
   Plus,
   Target,
@@ -20,7 +20,10 @@ import {
   User,
   Users,
   Send,
-  MessageSquare
+  MessageSquare,
+  Search,
+  Filter,
+  X
 } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -48,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { useAuth, usePermission } from "@/lib/auth-context"
 import {
   useGoals,
@@ -92,11 +96,12 @@ const formatStatus = (status) => {
   ).join(' ')
 }
 
-function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, onApprove, onRespond, onRequestChange, canEdit = false, canApprove = false, isTeamGoal = false, onViewDetails }) {
+function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, onApprove, onRespond, onRequestChange, canEdit = false, canApprove = false, isTeamGoal = false, onViewDetails, currentUserId }) {
   const TypeIcon = typeIcons[goal.type]
   const isPendingApproval = goal.status === "PENDING_APPROVAL"
   const isActive = goal.status === "ACTIVE"
   const isAssignedByOther = goal.created_by !== goal.owner_id
+  const isOwnGoal = goal.owner_id === currentUserId
 
   return (
     <Card className="group hover:shadow-md transition-all duration-200 cursor-pointer" onClick={() => onViewDetails && onViewDetails(goal)}>
@@ -105,10 +110,6 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
           <div className="space-y-2 flex-1">
             <CardTitle className="text-lg font-semibold">{goal.title}</CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={`${typeColors[goal.type]} flex items-center gap-1.5`}>
-                <TypeIcon className="h-3.5 w-3.5" />
-                {goal.type}
-              </Badge>
               <Badge className={`${statusColors[goal.status]} flex items-center gap-1.5`}>
                 {formatStatus(goal.status)}
               </Badge>
@@ -125,6 +126,21 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
                 <Badge variant="outline">{goal.quarter} {goal.year}</Badge>
               )}
             </div>
+            {/* Show owner name for team goals */}
+            {isTeamGoal && goal.owner_name && (
+              <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                <User className="h-3.5 w-3.5" />
+                <span>{goal.owner_name}</span>
+              </div>
+            )}
+            {/* Show assigned to for goals assigned to subordinates */}
+            {isAssignedByOther && goal.owner_name && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant="outline" className="text-xs">
+                  Assigned to: {goal.owner_name}
+                </Badge>
+              </div>
+            )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -133,10 +149,10 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {/* Approve option for supervisors on team goals */}
-              {canApprove && isPendingApproval && isTeamGoal && (
+              {/* Approve option for supervisors on subordinate goals (created by subordinates) */}
+              {canApprove && isPendingApproval && isTeamGoal && !isAssignedByOther && (
                 <>
-                  <DropdownMenuItem onClick={() => onApprove(goal)}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onApprove(goal); }}>
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Approve Goal
                   </DropdownMenuItem>
@@ -144,14 +160,14 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
                 </>
               )}
 
-              {/* Respond option for supervisees on assigned goals */}
-              {isPendingApproval && isAssignedByOther && !isTeamGoal && (
+              {/* Respond option for subordinates on goals assigned by supervisor */}
+              {isPendingApproval && isAssignedByOther && isOwnGoal && (
                 <>
-                  <DropdownMenuItem onClick={() => onRespond(goal, true)}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRespond(goal, true); }}>
                     <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
                     Accept Goal
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onRespond(goal, false)}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRespond(goal, false); }}>
                     <XCircle className="mr-2 h-4 w-4 text-red-600" />
                     Decline Goal
                   </DropdownMenuItem>
@@ -159,41 +175,51 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
                 </>
               )}
 
-              {/* Edit and progress options */}
-              {canEdit && !goal.frozen && (
+              {/* Edit and delete options for team goals (supervisor can edit assigned goals) */}
+              {isTeamGoal && !goal.frozen && (
                 <>
-                  <DropdownMenuItem onClick={() => onEdit(goal)}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(goal); }}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Goal
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(goal); }} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Goal
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
+              {/* Edit and progress options for own goals */}
+              {canEdit && !goal.frozen && !isTeamGoal && (
+                <>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(goal); }}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Goal
                   </DropdownMenuItem>
                   {isActive && (
                     <>
-                      <DropdownMenuItem onClick={() => onUpdateProgress(goal)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateProgress(goal); }}>
                         <FileText className="mr-2 h-4 w-4" />
                         Update Progress
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onRequestChange(goal)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRequestChange(goal); }}>
                         <MessageSquare className="mr-2 h-4 w-4" />
                         Request Change
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onStatusChange(goal, "ACHIEVED")}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStatusChange(goal, "ACHIEVED"); }}>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
                         Mark as Achieved
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onStatusChange(goal, "DISCARDED")}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStatusChange(goal, "DISCARDED"); }}>
                         <AlertCircle className="mr-2 h-4 w-4" />
                         Discard Goal
                       </DropdownMenuItem>
                     </>
                   )}
-                </>
-              )}
-
-              {canEdit && (
-                <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onDelete(goal)} className="text-red-600">
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(goal); }} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete Goal
                   </DropdownMenuItem>
@@ -244,19 +270,48 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
   const currentQuarter = Math.ceil(currentMonth / 3)
 
   const [formData, setFormData] = useState({
-    title: goal?.title || "",
-    description: goal?.description || "",
+    title: "",
+    description: "",
     type: "INDIVIDUAL",
-    start_date: goal?.start_date || "",
-    end_date: goal?.end_date || "",
-    quarter: goal?.quarter || `Q${currentQuarter}`,
-    year: goal?.year || currentYear,
-    supervisee_id: goal?.owner_id || "",
+    start_date: "",
+    end_date: "",
+    quarter: `Q${currentQuarter}`,
+    year: currentYear,
+    supervisee_id: "",
   })
 
   const [createForSupervisee, setCreateForSupervisee] = useState(false)
 
   const { data: goals = [] } = useGoals()
+
+  // Update form data when goal changes
+  useEffect(() => {
+    if (goal) {
+      setFormData({
+        title: goal.title || "",
+        description: goal.description || "",
+        type: "INDIVIDUAL",
+        start_date: goal.start_date || "",
+        end_date: goal.end_date || "",
+        quarter: goal.quarter || `Q${currentQuarter}`,
+        year: goal.year || currentYear,
+        supervisee_id: goal.owner_id || "",
+      })
+      setCreateForSupervisee(!!goal.owner_id && goal.owner_id !== goal.created_by)
+    } else {
+      setFormData({
+        title: "",
+        description: "",
+        type: "INDIVIDUAL",
+        start_date: "",
+        end_date: "",
+        quarter: `Q${currentQuarter}`,
+        year: currentYear,
+        supervisee_id: "",
+      })
+      setCreateForSupervisee(false)
+    }
+  }, [goal, currentQuarter, currentYear])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -319,6 +374,16 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.supervisee_id && (
+                  <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                    <User className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-900">
+                      Assigning to: <span className="font-semibold">
+                        {supervisees.find(s => s.id === formData.supervisee_id)?.name}
+                      </span>
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -706,19 +771,6 @@ function RespondToGoalDialog({ goal, isOpen, onClose, onSubmit }) {
                 />
               </div>
             )}
-
-            {formData.accepted && (
-              <div className="grid gap-2">
-                <Label htmlFor="response_message">Message (Optional)</Label>
-                <Textarea
-                  id="response_message"
-                  value={formData.response_message}
-                  onChange={(e) => setFormData({ ...formData, response_message: e.target.value })}
-                  placeholder="Add any comments..."
-                  rows={3}
-                />
-              </div>
-            )}
           </div>
 
           <DialogFooter>
@@ -726,7 +778,7 @@ function RespondToGoalDialog({ goal, isOpen, onClose, onSubmit }) {
               Cancel
             </Button>
             <Button type="submit" variant={formData.accepted ? "default" : "destructive"}>
-              {formData.accepted ? "Accept Goal" : "Decline Goal"}
+              Confirm
             </Button>
           </DialogFooter>
         </form>
@@ -735,10 +787,20 @@ function RespondToGoalDialog({ goal, isOpen, onClose, onSubmit }) {
   )
 }
 
-function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor }) {
+function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor, supervisee, canApprove, onApprove, currentUserId }) {
   if (!goal) return null
 
   const TypeIcon = typeIcons[goal.type]
+  const isPendingApproval = goal.status === "PENDING_APPROVAL"
+  const isAssignedByOther = goal.created_by !== goal.owner_id
+  const isOwnersGoal = goal.created_by !== currentUserId && goal.owner_id !== currentUserId
+
+  const handleApprove = () => {
+    if (onApprove) {
+      onApprove(goal)
+      onClose()
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -748,10 +810,6 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor }) {
             <div className="space-y-2 flex-1">
               <DialogTitle className="text-xl">{goal.title}</DialogTitle>
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge className={`${typeColors[goal.type]} flex items-center gap-1.5`}>
-                  <TypeIcon className="h-3.5 w-3.5" />
-                  {goal.type}
-                </Badge>
                 <Badge className={statusColors[goal.status]}>
                   {formatStatus(goal.status)}
                 </Badge>
@@ -762,6 +820,13 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor }) {
                   <Badge className="bg-gray-200 text-gray-800">Frozen</Badge>
                 )}
               </div>
+              {/* Show owner name if viewing someone else's goal */}
+              {goal.owner_name && isOwnersGoal && (
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <User className="h-3.5 w-3.5" />
+                  <span>Goal Owner: {goal.owner_name}</span>
+                </div>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -821,9 +886,6 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor }) {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-blue-800">{parentGoal.title}</p>
                 <div className="flex items-center gap-2">
-                  <Badge className={typeColors[parentGoal.type]}>
-                    {parentGoal.type}
-                  </Badge>
                   <Badge className={statusColors[parentGoal.status]}>
                     {formatStatus(parentGoal.status)}
                   </Badge>
@@ -832,8 +894,27 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor }) {
             </div>
           )}
 
-          {/* Supervisor Info */}
-          {supervisor && (
+          {/* Supervisee Info (for supervisors viewing subordinate goals) */}
+          {supervisee && (
+            <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-semibold text-sm text-blue-900">Team Member</h3>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
+                  <User className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900">{supervisee.name}</p>
+                  <p className="text-xs text-blue-700">{supervisee.job_title || 'Team Member'}</p>
+                  {supervisee.email && (
+                    <p className="text-xs text-blue-600">{supervisee.email}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Supervisor Info (for employees viewing their own goals) */}
+          {supervisor && !supervisee && (
             <div className="space-y-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <h3 className="font-semibold text-sm text-gray-700">Reporting Supervisor</h3>
               <div className="flex items-center gap-3">
@@ -875,6 +956,12 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor }) {
         </div>
 
         <DialogFooter>
+          {canApprove && isPendingApproval && !isAssignedByOther && (
+            <Button type="button" onClick={handleApprove} className="mr-auto">
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Approve Goal
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={onClose}>
             Close
           </Button>
@@ -898,6 +985,9 @@ export default function GoalsPage() {
   const [respondingGoal, setRespondingGoal] = useState(null)
   const [detailGoal, setDetailGoal] = useState(null)
   const [activeTab, setActiveTab] = useState("organizational")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [yearFilter, setYearFilter] = useState("all")
+  const [superviseeFilter, setSuperviseeFilter] = useState("all")
 
   const { user } = useAuth()
   const canEditGoals = usePermission("goal_edit")
@@ -905,8 +995,15 @@ export default function GoalsPage() {
   const canApproveGoals = usePermission("goal_approve")
 
   const { data: goals = [], isLoading } = useGoals()
-  const { data: superviseeGoals = [] } = useSuperviseeGoals()
-  const { data: users = [] } = useUsers()
+  const { data: superviseeGoals = [], refetch: refetchSuperviseeGoals } = useSuperviseeGoals()
+  const { data: users = [], isLoading: isLoadingUsers } = useUsers()
+
+  // Refetch supervisee goals when switching to team tab
+  useEffect(() => {
+    if (activeTab === "team") {
+      refetchSuperviseeGoals()
+    }
+  }, [activeTab, refetchSuperviseeGoals])
 
   const createMutation = useCreateGoal()
   const createForSuperviseeMutation = useCreateGoalForSupervisee()
@@ -920,21 +1017,88 @@ export default function GoalsPage() {
 
   // Get supervisees for supervisor view
   const supervisees = useMemo(() => {
-    return users.filter(u => u.supervisor_id === user?.user_id)
-  }, [users, user])
+    if (!user?.user_id || !users || users.length === 0) return []
+    return users.filter(u => u.supervisor_id === user.user_id)
+  }, [users, user?.user_id])
 
   const isSupervisor = supervisees.length > 0
 
-  // Filter goals by type
-  const organizationalGoals = useMemo(() =>
-    goals.filter(g => g.type === "YEARLY" || g.type === "QUARTERLY"),
-    [goals]
-  )
+  // Get unique years from goals for filter
+  const availableYears = useMemo(() => {
+    const years = new Set()
+    goals.forEach(g => {
+      if (g.year) years.add(g.year.toString())
+    })
+    return Array.from(years).sort((a, b) => b - a)
+  }, [goals])
 
-  const myIndividualGoals = useMemo(() =>
-    goals.filter(g => g.type === "INDIVIDUAL" && g.owner_id === user?.user_id),
-    [goals, user]
-  )
+  const yearOptions = [
+    { value: "all", label: "All Years" },
+    ...availableYears.map(year => ({ value: year, label: year }))
+  ]
+
+  const superviseeOptions = [
+    { value: "all", label: "All Team Members" },
+    ...supervisees.map(s => ({ value: s.id, label: s.name }))
+  ]
+
+  // Filter goals by type, year, and search term
+  const organizationalGoals = useMemo(() => {
+    let filtered = goals.filter(g => g.type === "YEARLY" || g.type === "QUARTERLY")
+
+    if (yearFilter !== "all") {
+      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(g =>
+        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return filtered
+  }, [goals, yearFilter, searchTerm])
+
+  const myIndividualGoals = useMemo(() => {
+    let filtered = goals.filter(g => g.type === "INDIVIDUAL" && g.owner_id === user?.user_id)
+
+    if (yearFilter !== "all") {
+      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(g =>
+        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return filtered
+  }, [goals, user, yearFilter, searchTerm])
+
+  // Filtered supervisee goals
+  const filteredSuperviseeGoals = useMemo(() => {
+    let filtered = superviseeGoals
+
+    if (yearFilter !== "all") {
+      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(g =>
+        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.owner_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    if (superviseeFilter !== "all") {
+      filtered = filtered.filter(g => g.owner_id === superviseeFilter)
+    }
+
+    return filtered
+  }, [superviseeGoals, yearFilter, searchTerm, superviseeFilter])
 
   // Handlers
   const handleCreate = (data) => {
@@ -1060,16 +1224,35 @@ export default function GoalsPage() {
     setIsDetailOpen(true)
   }
 
-  // Get parent goal and supervisor for detail view
+  // Get parent goal and related user info for detail view
   const parentGoalForDetail = detailGoal?.parent_goal_id
     ? goals.find(g => g.id === detailGoal.parent_goal_id)
     : null
 
-  const supervisorForDetail = detailGoal?.owner_id && detailGoal.owner_id !== user?.user_id
-    ? users.find(u => u.id === detailGoal.owner_id)?.supervisor
-    : user?.supervisor_id
-      ? users.find(u => u.id === user.supervisor_id)
-      : null
+  // Get supervisee information when supervisor is viewing subordinate's goal
+  const superviseeForDetail = useMemo(() => {
+    if (!detailGoal) return null
+
+    // If I'm viewing someone else's goal and I'm their supervisor, show their info
+    const goalOwner = users.find(u => u.id === detailGoal.owner_id)
+    if (goalOwner && goalOwner.supervisor_id === user?.user_id) {
+      return goalOwner
+    }
+
+    return null
+  }, [detailGoal, users, user?.user_id])
+
+  // Get supervisor information when viewing my own goal
+  const supervisorForDetail = useMemo(() => {
+    if (!detailGoal || superviseeForDetail) return null // Don't show supervisor if showing supervisee
+
+    // If this is my goal, show my supervisor
+    if (detailGoal.owner_id === user?.user_id && user?.supervisor_id) {
+      return users.find(u => u.id === user.supervisor_id)
+    }
+
+    return null
+  }, [detailGoal, users, user?.user_id, user?.supervisor_id, superviseeForDetail])
 
   return (
     <div className="space-y-8">
@@ -1099,13 +1282,50 @@ export default function GoalsPage() {
           {isSupervisor && (
             <TabsTrigger value="team" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Team Goals
+              Subordinate Goals
             </TabsTrigger>
           )}
         </TabsList>
 
         {/* Organizational Goals Tab */}
         <TabsContent value="organizational" className="space-y-6">
+          {/* Search and Filters */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search goals..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <SearchableSelect
+              value={yearFilter}
+              onValueChange={setYearFilter}
+              options={yearOptions}
+              placeholder="Filter by year"
+              searchPlaceholder="Search year..."
+              emptyText="No years found."
+              className="w-[180px]"
+            />
+
+            {(searchTerm || yearFilter !== "all") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm("")
+                  setYearFilter("all")
+                }}
+                className="whitespace-nowrap"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Company Goals</CardTitle>
@@ -1132,6 +1352,7 @@ export default function GoalsPage() {
                       onStatusChange={handleStatusChange}
                       onViewDetails={handleViewDetails}
                       canEdit={false}
+                      currentUserId={user?.user_id}
                     />
                   ))}
                 </div>
@@ -1158,6 +1379,43 @@ export default function GoalsPage() {
             </Button>
           </div>
 
+          {/* Search and Filters */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search goals..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <SearchableSelect
+              value={yearFilter}
+              onValueChange={setYearFilter}
+              options={yearOptions}
+              placeholder="Filter by year"
+              searchPlaceholder="Search year..."
+              emptyText="No years found."
+              className="w-[180px]"
+            />
+
+            {(searchTerm || yearFilter !== "all") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm("")
+                  setYearFilter("all")
+                }}
+                className="whitespace-nowrap"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>My Individual Goals ({myIndividualGoals.length})</CardTitle>
@@ -1178,6 +1436,7 @@ export default function GoalsPage() {
                       onRequestChange={handleChangeRequestDialog}
                       onViewDetails={handleViewDetails}
                       canEdit={canEditGoals || goal.created_by === user?.user_id}
+                      currentUserId={user?.user_id}
                     />
                   ))}
                 </div>
@@ -1196,30 +1455,78 @@ export default function GoalsPage() {
           </Card>
         </TabsContent>
 
-        {/* Team Goals Tab (Supervisors only) */}
+        {/* Subordinate Goals Tab (Supervisors only) */}
         {isSupervisor && (
           <TabsContent value="team" className="space-y-6">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Review and approve your team members' goals
+                Review and approve your subordinates' goals
               </p>
               <Button onClick={() => setIsFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Create Goal for Team Member
+                Create Goal for Subordinate
               </Button>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search goals or team members..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <SearchableSelect
+                value={yearFilter}
+                onValueChange={setYearFilter}
+                options={yearOptions}
+                placeholder="Filter by year"
+                searchPlaceholder="Search year..."
+                emptyText="No years found."
+                className="w-[180px]"
+              />
+
+              <SearchableSelect
+                value={superviseeFilter}
+                onValueChange={setSuperviseeFilter}
+                options={superviseeOptions}
+                placeholder="Filter by member"
+                searchPlaceholder="Search team member..."
+                emptyText="No team members found."
+                className="w-[220px]"
+              />
+
+              {(searchTerm || yearFilter !== "all" || superviseeFilter !== "all") && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm("")
+                    setYearFilter("all")
+                    setSuperviseeFilter("all")
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear Filters
+                </Button>
+              )}
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Team Member Goals ({superviseeGoals.length})</CardTitle>
+                <CardTitle>Subordinate Goals ({filteredSuperviseeGoals.length})</CardTitle>
                 <CardDescription>
-                  {supervisees.length} team members
+                  {supervisees.length} subordinates
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {superviseeGoals.length > 0 ? (
+                {filteredSuperviseeGoals.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {superviseeGoals.map((goal) => (
+                    {filteredSuperviseeGoals.map((goal) => (
                       <GoalCard
                         key={goal.id}
                         goal={goal}
@@ -1232,17 +1539,22 @@ export default function GoalsPage() {
                         canEdit={canEditGoals}
                         canApprove={canApproveGoals || true}
                         isTeamGoal={true}
+                        currentUserId={user?.user_id}
                       />
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-12">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No team goals yet</h3>
-                    <p className="text-gray-600 mb-4">Create goals for your team members or wait for them to create their own</p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No subordinate goals found</h3>
+                    <p className="text-gray-600 mb-4">
+                      {(searchTerm || yearFilter !== "all" || superviseeFilter !== "all")
+                        ? "Try adjusting your filters"
+                        : "Create goals for your subordinates or wait for them to create their own"}
+                    </p>
                     <Button onClick={() => setIsFormOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Create Goal for Team Member
+                      Create Goal for Subordinate
                     </Button>
                   </div>
                 )}
@@ -1314,6 +1626,10 @@ export default function GoalsPage() {
         }}
         parentGoal={parentGoalForDetail}
         supervisor={supervisorForDetail}
+        supervisee={superviseeForDetail}
+        canApprove={canApproveGoals || true}
+        onApprove={handleApprovalDialog}
+        currentUserId={user?.user_id}
       />
     </div>
   )

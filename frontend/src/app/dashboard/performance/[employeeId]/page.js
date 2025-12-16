@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, FileText } from "lucide-react"
 
@@ -30,13 +30,7 @@ export default function EmployeeScorecardPage() {
 
   const cycleId = searchParams.get('cycle')
 
-  useEffect(() => {
-    if (params.employeeId && cycleId) {
-      fetchEmployeeScorecard()
-    }
-  }, [params.employeeId, cycleId, fetchEmployeeScorecard])
-
-  const fetchEmployeeScorecard = async () => {
+  const fetchEmployeeScorecard = useCallback(async () => {
     try {
       setLoading(true)
       // Fetch organization performance data which includes employee details
@@ -57,7 +51,13 @@ export default function EmployeeScorecardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.employeeId, cycleId])
+
+  useEffect(() => {
+    if (params.employeeId && cycleId) {
+      fetchEmployeeScorecard()
+    }
+  }, [params.employeeId, cycleId, fetchEmployeeScorecard])
 
   const getScoreColor = (score) => {
     if (!score) return "text-gray-400"

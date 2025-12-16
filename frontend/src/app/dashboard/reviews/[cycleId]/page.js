@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Users, Calendar, BarChart3, Settings, Plus, Edit, Trash2, Eye, Search, X, Filter } from "lucide-react"
 
@@ -15,8 +15,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { GET, POST, DELETE } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
+import { useOrganizations } from "@/lib/react-query"
 
 export default function ReviewCycleDetailPage() {
   const params = useParams()
@@ -36,18 +38,22 @@ export default function ReviewCycleDetailPage() {
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  useEffect(() => {
-    if (cycleId) {
-      fetchCycleDetails()
-      if (cycle?.status === 'active' || cycle?.status === 'completed') {
-        fetchReviews()
-      }
-    }
-  }, [cycleId, cycle?.status, fetchCycleDetails, fetchReviews])
+  const { data: organizations = [] } = useOrganizations()
 
-  const fetchCycleDetails = async () => {
+  // Get department options from organizations
+  const departmentOptions = [
+    { value: "all", label: "All Departments" },
+    ...organizations
+      .filter(org => org.level === "department")
+      .map(org => ({
+        value: org.name,
+        label: org.name
+      }))
+  ]
+
+  const fetchCycleDetails = useCallback(async () => {
     try {
-      // Fetch cycle details
+       
       const cycleData = await GET(`/api/reviews/cycles/${cycleId}`)
       setCycle(cycleData)
 
@@ -81,7 +87,30 @@ export default function ReviewCycleDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [cycleId])
+
+  const fetchReviews = useCallback(async () => {
+    try {
+      // Fetch aggregated review scores for all users in this cycle
+      const data = await GET(`/api/reviews/cycles/${cycleId}/user-scores`)
+      setReviews(data)
+    } catch (error) {
+      console.error('Error fetching reviews:', error)
+      setReviews([])
+    }
+  }, [cycleId])
+
+  useEffect(() => {
+    if (cycleId) {
+      fetchCycleDetails()
+    }
+  }, [cycleId, fetchCycleDetails])
+
+  useEffect(() => {
+    if (cycle?.status === 'active' || cycle?.status === 'completed') {
+      fetchReviews()
+    }
+  }, [cycle?.status, fetchReviews])
 
   const addQuestionToTrait = async (traitId, questionData) => {
     try {
@@ -99,17 +128,6 @@ export default function ReviewCycleDetailPage() {
       fetchCycleDetails() // Refresh the data
     } catch (error) {
       console.error('Error deleting question:', error)
-    }
-  }
-
-  const fetchReviews = async () => {
-    try {
-      // Fetch aggregated review scores for all users in this cycle
-      const data = await GET(`/api/reviews/cycles/${cycleId}/user-scores`)
-      setReviews(data)
-    } catch (error) {
-      console.error('Error fetching reviews:', error)
-      setReviews([])
     }
   }
 
@@ -423,17 +441,15 @@ export default function ReviewCycleDetailPage() {
                   <span className="text-sm font-medium">Filters:</span>
                 </div>
 
-                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {Array.from(new Set(reviews.map(r => r.department_name))).filter(Boolean).map(dept => (
-                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={departmentFilter}
+                  onValueChange={setDepartmentFilter}
+                  options={departmentOptions}
+                  placeholder="All Departments"
+                  searchPlaceholder="Search departments..."
+                  emptyText="No departments found."
+                  className="w-[250px]"
+                />
 
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">

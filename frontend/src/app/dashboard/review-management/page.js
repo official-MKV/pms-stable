@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Eye, Users, Calendar, BarChart3, Clock, FileText, Search, Filter, X, Settings, Edit, Trash2, Target, ArrowLeft } from "lucide-react"
+import { Plus, Eye, Users, Calendar, BarChart3, Clock, FileText, Search, Filter, X, Settings, Edit, Trash2, ArrowLeft } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,9 +37,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { useAuth, PermissionGuard } from "@/lib/auth-context"
 import { GET, POST, DELETE } from "@/lib/api"
-import { useFreezeGoalsQuarter } from "@/lib/react-query"
+import { toast } from "sonner"
 
 const statusColors = {
   draft: "bg-gray-100 text-gray-800",
@@ -70,6 +71,9 @@ function TraitManagement() {
   const [selectedTrait, setSelectedTrait] = useState(null)
   const [questions, setQuestions] = useState([])
   const [traitFormType, setTraitFormType] = useState('value') // 'value' or 'competency'
+  const [searchTerm, setSearchTerm] = useState("")
+  const [scopeFilter, setScopeFilter] = useState("all") // all, global, directorate, department
+  const [selectedReviewType, setSelectedReviewType] = useState(null) // Track which review type button was clicked
 
   useEffect(() => {
     fetchTraits()
@@ -90,12 +94,44 @@ function TraitManagement() {
   const createTrait = async (traitData) => {
     try {
       await POST('/api/reviews/traits', traitData)
+      toast.success('Value/Competency created successfully')
       fetchTraits()
       setShowTraitDialog(false)
     } catch (error) {
       console.error('Error creating trait:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create value/competency'
+      toast.error(errorMessage)
     }
   }
+
+  const deleteTrait = async (traitId) => {
+    if (!confirm('Are you sure you want to delete this value/competency? This will also delete all associated questions.')) {
+      return
+    }
+    try {
+      await DELETE(`/api/reviews/traits/${traitId}`)
+      toast.success('Value/Competency deleted successfully')
+      fetchTraits()
+    } catch (error) {
+      console.error('Error deleting trait:', error)
+      const errorMessage = error.response?.data?.detail ||
+        error.message ||
+        'Failed to delete. This value/competency may be in use by active review cycles.'
+      toast.error(errorMessage)
+    }
+  }
+
+  // Filter traits based on search and scope
+  const filteredTraits = traits.filter(trait => {
+    const matchesSearch = !searchTerm ||
+      trait.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      trait.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      trait.organization_name?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesScope = scopeFilter === "all" || trait.scope_type === scopeFilter
+
+    return matchesSearch && matchesScope
+  })
 
   const fetchQuestions = async (traitId) => {
     try {
@@ -115,10 +151,14 @@ function TraitManagement() {
   const createQuestion = async (questionData) => {
     try {
       await POST(`/api/reviews/traits/${selectedTrait.id}/questions`, questionData)
+      toast.success('Question added successfully')
       fetchQuestions(selectedTrait.id)
       setShowQuestionDialog(false)
+      setSelectedReviewType(null)
     } catch (error) {
       console.error('Error creating question:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to add question'
+      toast.error(errorMessage)
     }
   }
 
@@ -131,6 +171,13 @@ function TraitManagement() {
     )
   }
 
+  const scopeFilterOptions = [
+    { value: "all", label: "All Scopes" },
+    { value: "global", label: "Global (Values)" },
+    { value: "directorate", label: "Directorate Level" },
+    { value: "department", label: "Department Level" },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -138,7 +185,6 @@ function TraitManagement() {
         <div className="flex gap-2">
           <Button onClick={() => {
             setShowTraitDialog(true)
-            // Set initial scope to global for values
             setTraitFormType('value')
           }}>
             <Plus className="w-4 h-4 mr-2" />
@@ -146,7 +192,6 @@ function TraitManagement() {
           </Button>
           <Button onClick={() => {
             setShowTraitDialog(true)
-            // Set initial scope to non-global for competency
             setTraitFormType('competency')
           }} variant="outline">
             <Plus className="w-4 h-4 mr-2" />
@@ -155,58 +200,116 @@ function TraitManagement() {
         </div>
       </div>
 
+      {/* Search and Filters */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search values/competencies..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <SearchableSelect
+          value={scopeFilter}
+          onValueChange={setScopeFilter}
+          options={scopeFilterOptions}
+          placeholder="Filter by scope"
+          searchPlaceholder="Search scope..."
+          emptyText="No scopes found."
+          className="w-[250px]"
+        />
+
+        {(searchTerm || scopeFilter !== "all") && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchTerm("")
+              setScopeFilter("all")
+            }}
+            className="whitespace-nowrap"
+          >
+            <X className="mr-2 h-4 w-4" />
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {traits.map((trait) => (
-          <Card key={trait.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{trait.name}</CardTitle>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">{trait.question_count} questions</Badge>
+        {filteredTraits.length > 0 ? (
+          filteredTraits.map((trait) => (
+            <Card key={trait.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{trait.name}</CardTitle>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary">{trait.question_count} questions</Badge>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge
-                  variant="outline"
-                  className={
-                    trait.scope_type === 'global' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                    trait.scope_type === 'directorate' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                    trait.scope_type === 'department' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                    'bg-gray-50 text-gray-700 border-gray-200'
-                  }
-                >
-                  {trait.scope_type === 'global' ? 'Global' :
-                   trait.scope_type === 'directorate' ? 'Directorate' :
-                   trait.scope_type === 'department' ? 'Department' : 'Unit'}
-                </Badge>
-                {trait.organization_name && (
-                  <span className="text-xs text-muted-foreground">
-                    {trait.organization_name}
-                  </span>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      trait.scope_type === 'global' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      trait.scope_type === 'directorate' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                      trait.scope_type === 'department' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                      'bg-gray-50 text-gray-700 border-gray-200'
+                    }
+                  >
+                    {trait.scope_type === 'global' ? 'Global' :
+                     trait.scope_type === 'directorate' ? 'Directorate' :
+                     trait.scope_type === 'department' ? 'Department' : 'Unit'}
+                  </Badge>
+                  {trait.organization_name && (
+                    <span className="text-xs text-muted-foreground">
+                      {trait.organization_name}
+                    </span>
+                  )}
+                </div>
+                {trait.description && (
+                  <CardDescription className="text-sm mt-2">
+                    {trait.description}
+                  </CardDescription>
                 )}
-              </div>
-              {trait.description && (
-                <CardDescription className="text-sm mt-2">
-                  {trait.description}
-                </CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTrait(trait)
-                    fetchQuestions(trait.id)
-                  }}
-                >
-                  <Settings className="w-3 h-3 mr-1" />
-                  Manage Questions
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTrait(trait)
+                      fetchQuestions(trait.id)
+                    }}
+                  >
+                    <Settings className="w-3 h-3 mr-1" />
+                    Manage Questions
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteTrait(trait.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No values/competencies found</h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm || scopeFilter !== "all"
+                ? "Try adjusting your filters"
+                : "Get started by adding your first value or competency"}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Dialogs for trait and question management */}
@@ -222,9 +325,13 @@ function TraitManagement() {
 
       <QuestionDialog
         open={showQuestionDialog}
-        onClose={() => setShowQuestionDialog(false)}
+        onClose={() => {
+          setShowQuestionDialog(false)
+          setSelectedReviewType(null)
+        }}
         onSubmit={createQuestion}
         trait={selectedTrait}
+        initialReviewType={selectedReviewType}
       />
 
       <QuestionsManagementDialog
@@ -232,7 +339,14 @@ function TraitManagement() {
         onClose={() => setSelectedTrait(null)}
         trait={selectedTrait}
         questions={questions}
-        onAddQuestion={() => setShowQuestionDialog(true)}
+        onAddQuestion={() => {
+          setSelectedReviewType(null)
+          setShowQuestionDialog(true)
+        }}
+        onAddQuestionWithType={(reviewType) => {
+          setSelectedReviewType(reviewType)
+          setShowQuestionDialog(true)
+        }}
         onRefreshQuestions={() => selectedTrait && fetchQuestions(selectedTrait.id)}
       />
     </div>
@@ -488,6 +602,7 @@ function TraitDialog({ open, onClose, onSubmit, initialType = 'value' }) {
     organization_id: null
   })
   const [organizations, setOrganizations] = useState([])
+  const [filteredOrganizations, setFilteredOrganizations] = useState([])
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -509,6 +624,17 @@ function TraitDialog({ open, onClose, onSubmit, initialType = 'value' }) {
     }
   }, [open, initialType])
 
+  // Filter organizations based on scope type and convert to options
+  useEffect(() => {
+    const filtered = organizations.filter(org => org.level === formData.scope_type)
+    setFilteredOrganizations(filtered)
+  }, [organizations, formData.scope_type])
+
+  const organizationOptions = filteredOrganizations.map(org => ({
+    value: org.id,
+    label: org.name
+  }))
+
   const handleSubmit = (e) => {
     e.preventDefault()
     onSubmit(formData)
@@ -516,6 +642,20 @@ function TraitDialog({ open, onClose, onSubmit, initialType = 'value' }) {
   }
 
   const scopeRequiresOrg = formData.scope_type !== "global"
+
+  // Get the label based on scope type
+  const getOrganizationLabel = () => {
+    switch(formData.scope_type) {
+      case 'directorate':
+        return 'Directorate'
+      case 'department':
+        return 'Department'
+      case 'unit':
+        return 'Unit'
+      default:
+        return 'Organization Unit'
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -584,31 +724,24 @@ function TraitDialog({ open, onClose, onSubmit, initialType = 'value' }) {
 
             {scopeRequiresOrg && (
               <div>
-                <Label htmlFor="organization">Organization Unit *</Label>
-                <Select
+                <Label htmlFor="organization">{getOrganizationLabel()} *</Label>
+                <SearchableSelect
                   value={formData.organization_id || ""}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, organization_id: value }))}
-                  required={scopeRequiresOrg}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organizational unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {organizations
-                      .filter(org => org.level === formData.scope_type)
-                      .map((org) => (
-                        <SelectItem key={org.id} value={org.id}>
-                          {org.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  options={organizationOptions}
+                  placeholder={`Select ${getOrganizationLabel().toLowerCase()}`}
+                  searchPlaceholder={`Search ${getOrganizationLabel().toLowerCase()}s...`}
+                  emptyText={`No ${getOrganizationLabel().toLowerCase()}s found.`}
+                  className="w-full"
+                />
               </div>
             )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">Create Trait</Button>
+            <Button type="submit">
+              {initialType === 'value' ? 'Create Value' : 'Create Competency'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -616,7 +749,7 @@ function TraitDialog({ open, onClose, onSubmit, initialType = 'value' }) {
   )
 }
 
-function QuestionDialog({ open, onClose, onSubmit, trait }) {
+function QuestionDialog({ open, onClose, onSubmit, trait, initialReviewType = null }) {
   const [formData, setFormData] = useState({
     question_text: "",
     applies_to_self: false,
@@ -624,12 +757,32 @@ function QuestionDialog({ open, onClose, onSubmit, trait }) {
     applies_to_supervisor: false
   })
 
+  // Pre-select review type when dialog opens from a specific tab
+  useEffect(() => {
+    if (open && initialReviewType) {
+      setFormData({
+        question_text: "",
+        applies_to_self: initialReviewType === 'self',
+        applies_to_peer: initialReviewType === 'peer',
+        applies_to_supervisor: initialReviewType === 'supervisor'
+      })
+    } else if (open && !initialReviewType) {
+      // Reset if no specific type
+      setFormData({
+        question_text: "",
+        applies_to_self: false,
+        applies_to_peer: false,
+        applies_to_supervisor: false
+      })
+    }
+  }, [open, initialReviewType])
+
   const handleSubmit = (e) => {
     e.preventDefault()
 
     // Validate that at least one review type is selected
     if (!formData.applies_to_self && !formData.applies_to_peer && !formData.applies_to_supervisor) {
-      alert('Please select at least one review type')
+      toast.error('Please select at least one review type')
       return
     }
 
@@ -702,7 +855,7 @@ function QuestionDialog({ open, onClose, onSubmit, trait }) {
   )
 }
 
-function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuestion, onRefreshQuestions }) {
+function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuestion, onAddQuestionWithType, onRefreshQuestions }) {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const reviewTypes = [
     { key: 'self', label: 'Self Review', color: 'bg-blue-100 text-blue-800' },
@@ -715,9 +868,12 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
   const deleteQuestion = async (questionId) => {
     try {
       await DELETE(`/api/reviews/questions/${questionId}`)
+      toast.success('Question deleted successfully')
       onRefreshQuestions()
     } catch (error) {
       console.error('Error deleting question:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete question'
+      toast.error(errorMessage)
     }
   }
 
@@ -756,7 +912,7 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
               <TabsContent key={type.key} value={type.key} className="space-y-3">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-medium">Questions for {type.label}</h4>
-                  <Button onClick={onAddQuestion} size="sm" variant="outline">
+                  <Button onClick={() => onAddQuestionWithType(type.key)} size="sm" variant="outline">
                     <Plus className="w-3 h-3 mr-1" />
                     Add {type.label} Question
                   </Button>
@@ -806,7 +962,7 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
                       <p className="text-gray-500 mb-4">
                         No questions have been added for {type.label.toLowerCase()} yet.
                       </p>
-                      <Button onClick={onAddQuestion} size="sm">
+                      <Button onClick={() => onAddQuestionWithType(type.key)} size="sm">
                         <Plus className="w-4 h-4 mr-2" />
                         Add First {type.label} Question
                       </Button>
@@ -840,101 +996,6 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
   )
 }
 
-// Freeze Goals Dialog Component
-function FreezeGoalsDialog({ isOpen, onClose }) {
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() + 1
-  const currentQuarter = Math.ceil(currentMonth / 3)
-
-  const [formData, setFormData] = useState({
-    quarter: `Q${currentQuarter}`,
-    year: currentYear
-  })
-
-  const freezeMutation = useFreezeGoalsQuarter()
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    freezeMutation.mutate(formData, {
-      onSuccess: () => {
-        onClose()
-      }
-    })
-  }
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Freeze Goals for Quarter
-            </DialogTitle>
-            <DialogDescription>
-              Freeze all individual goals for a specific quarter. Frozen goals cannot be edited.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="quarter" className="text-sm font-medium">
-                Quarter <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={formData.quarter}
-                onValueChange={(value) => setFormData({ ...formData, quarter: value })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select quarter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Q1">Q1 (Jan - Mar)</SelectItem>
-                  <SelectItem value="Q2">Q2 (Apr - Jun)</SelectItem>
-                  <SelectItem value="Q3">Q3 (Jul - Sep)</SelectItem>
-                  <SelectItem value="Q4">Q4 (Oct - Dec)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="year" className="text-sm font-medium">
-                Year <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="year"
-                type="number"
-                min={currentYear - 1}
-                max={currentYear + 5}
-                value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: Number.parseInt(e.target.value) })}
-                required
-              />
-            </div>
-
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800">
-                <strong>Warning:</strong> This action will freeze all individual goals for {formData.quarter} {formData.year}.
-                Frozen goals cannot be edited by employees or their supervisors.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={freezeMutation.isPending}>
-              {freezeMutation.isPending ? "Freezing..." : "Freeze Goals"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 // Main Review Management Page Component
 export default function ReviewManagementPage() {
   const { user } = useAuth()
@@ -944,7 +1005,6 @@ export default function ReviewManagementPage() {
   const [selectedCycle, setSelectedCycle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showCycleForm, setShowCycleForm] = useState(false)
-  const [showFreezeDialog, setShowFreezeDialog] = useState(false)
 
   useEffect(() => {
     fetchCycles()
@@ -964,11 +1024,13 @@ export default function ReviewManagementPage() {
   const handleCycleSubmit = async (cycleData) => {
     try {
       await POST('/api/reviews/cycles', cycleData)
+      toast.success('Review cycle created successfully')
       fetchCycles()
       setShowCycleForm(false)
     } catch (error) {
       console.error('Error creating cycle:', error)
-      alert(`Failed to create review cycle: ${error.message || 'Unknown error'}`)
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create review cycle'
+      toast.error(errorMessage)
     }
   }
 
@@ -987,16 +1049,10 @@ export default function ReviewManagementPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Review Management</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowFreezeDialog(true)}>
-              <Target className="w-4 h-4 mr-2" />
-              Freeze Goals
-            </Button>
-            <Button onClick={() => setShowCycleForm(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Review Cycle
-            </Button>
-          </div>
+          <Button onClick={() => setShowCycleForm(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Review Cycle
+          </Button>
         </div>
 
         <Tabs defaultValue="cycles" className="w-full">
@@ -1080,11 +1136,6 @@ export default function ReviewManagementPage() {
           isOpen={showCycleForm}
           onClose={() => setShowCycleForm(false)}
           onSubmit={handleCycleSubmit}
-        />
-
-        <FreezeGoalsDialog
-          isOpen={showFreezeDialog}
-          onClose={() => setShowFreezeDialog(false)}
         />
       </div>
     )

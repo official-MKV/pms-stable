@@ -540,6 +540,13 @@ export function useInitiatives(params = {}) {
   })
 }
 
+export function useSuperviseeInitiatives() {
+  return useQuery({
+    queryKey: ['initiatives', 'supervisees'],
+    queryFn: initiatives.getSuperviseeInitiatives,
+  })
+}
+
 export function useInitiativeStats() {
   return useQuery({
     queryKey: ['initiatives', 'stats'],

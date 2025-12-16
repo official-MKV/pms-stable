@@ -86,6 +86,23 @@ async function handleResponse(response) {
   }
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired or invalid
+    if (response.status === 401) {
+      // Import toast dynamically to avoid circular dependency
+      import('sonner').then(({ toast }) => {
+        toast.error('Your session has expired. Please log in again.')
+      })
+
+      // Clear auth data
+      removeAuthToken()
+      localStorage.removeItem('user_data')
+
+      // Redirect to login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
+    }
+
     const message = data?.detail || data?.message || `HTTP ${response.status}: ${response.statusText}`
     throw new ApiError(message, response.status, data)
   }
@@ -452,6 +469,14 @@ export const initiatives = {
   },
 
   /**
+   * Get initiatives for supervisees (team members)
+   * @returns {Promise<Array>} List of supervisee initiatives
+   */
+  async getSuperviseeInitiatives() {
+    return GET('/api/initiatives/supervisees')
+  },
+
+  /**
    * Approve or reject initiative (for supervisors)
    * @param {string} id - Initiative ID
    * @param {Object} approval - Approval data {approved: boolean, rejection_reason?: string}
@@ -775,7 +800,12 @@ export const goals = {
    * @returns {Promise<Object>} Updated goal data
    */
   async respond(id, response) {
-    return PUT(`/api/goals/${id}/respond`, response)
+    const params = new URLSearchParams()
+    params.append('accepted', response.accepted.toString())
+    if (response.response_message) {
+      params.append('response_message', response.response_message)
+    }
+    return PUT(`/api/goals/${id}/respond?${params.toString()}`)
   },
 
   /**

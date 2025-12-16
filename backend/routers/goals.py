@@ -491,8 +491,8 @@ async def create_goal_for_supervisee(
 @router.put("/{goal_id}/respond", response_model=GoalSchema)
 async def respond_to_assigned_goal(
     goal_id: uuid.UUID,
-    accepted: bool,
-    response_message: Optional[str] = None,
+    accepted: bool = Query(..., description="Whether the goal is accepted"),
+    response_message: Optional[str] = Query(None, description="Optional response message"),
     current_user: UserSession = Depends(get_current_user),
     db: Session = Depends(get_db),
     notification_service: NotificationService = Depends(get_notification_service)

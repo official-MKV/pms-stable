@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth, tokenUtils } from './api'
+import { toast } from 'sonner'
 
 /**
  * Authentication context for managing user state and authentication flow
@@ -53,8 +54,13 @@ export function AuthProvider({ children }) {
       // Check if token is expired
       if (tokenUtils.isTokenExpired()) {
         tokenUtils.removeToken()
+        localStorage.removeItem('user_data')
         setUser(null)
         setLoading(false)
+
+        // Show toast and redirect to login
+        toast.error('Your session has expired. Please log in again.')
+        router.replace('/login')
         return
       }
 
@@ -62,9 +68,13 @@ export function AuthProvider({ children }) {
       setUser(userData)
     } catch (error) {
       console.error('Error fetching user:', error)
-      // If API call fails, remove invalid token and reset user
-      tokenUtils.removeToken()
-      setUser(null)
+      // If API call fails (401 will be handled by API interceptor)
+      // Just remove invalid token and reset user for other errors
+      if (error.status !== 401) {
+        tokenUtils.removeToken()
+        localStorage.removeItem('user_data')
+        setUser(null)
+      }
     } finally {
       setLoading(false)
     }
@@ -218,6 +228,7 @@ export function withAuth(WrappedComponent) {
  */
 export function AuthGuard({ children, fallback = null }) {
   const { user, loading, loggingOut } = useAuth()
+  const router = useRouter()
 
   // Show loading during initial load or logout
   if (loading || loggingOut) {
@@ -231,8 +242,12 @@ export function AuthGuard({ children, fallback = null }) {
     )
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
-    return fallback
+    if (typeof window !== 'undefined') {
+      router.replace('/login')
+    }
+    return null
   }
 
   return children

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Filter, X, ArrowUpDown, Eye, BarChart3, CheckCircle2, XCircle, Clock } from "lucide-react"
 
@@ -24,8 +24,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { useAuth } from "@/lib/auth-context"
 import { GET } from "@/lib/api"
+import { useOrganizations } from "@/lib/react-query"
 
 const getInitials = (name) => {
   return name
@@ -50,17 +52,19 @@ export default function PerformanceManagementPage() {
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [sortBy, setSortBy] = useState("name")
   const [sortOrder, setSortOrder] = useState("asc")
-  const [departments, setDepartments] = useState([])
 
-  useEffect(() => {
-    fetchCycles()
-  }, [])
+  const { data: organizations = [] } = useOrganizations()
 
-  useEffect(() => {
-    if (selectedCycleId || (!cyclesLoading && cycles.length > 0)) {
-      fetchPerformanceData()
-    }
-  }, [selectedCycleId, departmentFilter, cyclesLoading, cycles.length, fetchPerformanceData])
+  // Get department options from organizations
+  const departmentOptions = [
+    { value: "all", label: "All Departments" },
+    ...organizations
+      .filter(org => org.level === "department")
+      .map(org => ({
+        value: org.name,
+        label: org.name
+      }))
+  ]
 
   const fetchCycles = async () => {
     try {
@@ -78,7 +82,7 @@ export default function PerformanceManagementPage() {
     }
   }
 
-  const fetchPerformanceData = async () => {
+  const fetchPerformanceData = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -94,20 +98,22 @@ export default function PerformanceManagementPage() {
       setEmployees(data.employees || [])
       setCycle(data.cycle || null)
       setTraits(data.traits || [])
-
-      // Extract unique departments
-      const uniqueDepts = [...new Set(
-        data.employees
-          .map(emp => emp.department_name)
-          .filter(Boolean)
-      )]
-      setDepartments(uniqueDepts)
     } catch (error) {
       console.error('Error fetching performance data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedCycleId, departmentFilter])
+
+  useEffect(() => {
+    fetchCycles()
+  }, [])
+
+  useEffect(() => {
+    if (selectedCycleId || (!cyclesLoading && cycles.length > 0)) {
+      fetchPerformanceData()
+    }
+  }, [selectedCycleId, departmentFilter, cyclesLoading, cycles.length, fetchPerformanceData])
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -234,17 +240,15 @@ export default function PerformanceManagementPage() {
                 />
               </div>
 
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="All Departments" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={departmentFilter}
+                onValueChange={setDepartmentFilter}
+                options={departmentOptions}
+                placeholder="All Departments"
+                searchPlaceholder="Search departments..."
+                emptyText="No departments found."
+                className="w-[250px]"
+              />
 
               <Button
                 variant="outline"
