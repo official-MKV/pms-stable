@@ -1,20 +1,26 @@
 // PM2 Ecosystem Configuration - PMS Backend
-// Automatically runs migrations before starting the backend server
+// Runs migrations before starting the backend server via start-with-migrations.ps1
+
 module.exports = {
   apps: [
     {
       name: "pms-backend",
-      script: "python",
-      args: "-m uvicorn main:app --host 0.0.0.0 --port 8000",
+      script: "powershell.exe",
+      args: "-ExecutionPolicy Bypass -File start-with-migrations.ps1",
+      cwd: process.env.BACKEND_PATH || "C:/Users/vem/pms-stable/backend",
       interpreter: "none",
-      cwd: "C:/Users/vem/pms-stable/backend",
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
-      env_file: ".env",
+      restart_delay: 5000,
+      kill_timeout: 5000,
       env: {
-        PYTHONUNBUFFERED: "1"
-      }
+        PYTHONUNBUFFERED: "1",
+        // Database and JWT secrets are loaded from .env file in the backend directory
+      },
+      error_file: "./logs/backend-error.log",
+      out_file: "./logs/backend-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z"
     }
   ]
 };
