@@ -19,10 +19,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Rename approved_at to completed_at in initiatives table
+    # Step 1: Update all APPROVED status values to COMPLETED in the database
+    op.execute("UPDATE initiatives SET status = 'COMPLETED' WHERE status = 'APPROVED'")
+
+    # Step 2: Rename approved_at to completed_at in initiatives table
     op.execute('ALTER TABLE initiatives RENAME COLUMN approved_at TO completed_at')
 
 
 def downgrade() -> None:
     # Revert: rename completed_at back to approved_at
     op.execute('ALTER TABLE initiatives RENAME COLUMN completed_at TO approved_at')
+
+    # Revert: change COMPLETED back to APPROVED (optional - may not be desired)
+    op.execute("UPDATE initiatives SET status = 'APPROVED' WHERE status = 'COMPLETED'")

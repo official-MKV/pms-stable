@@ -2,7 +2,7 @@
 Start-Sleep -Seconds 20
 
 # Permanently set PATH (in case it's lost)
-$npmPath = "C:\Users\vem\AppData\Roaming\npm"
+$npmPath = "C:\Users\DELL\AppData\Roaming\npm"
 $pythonPath = (Get-ChildItem "C:\Program Files\Python*\python.exe","C:\Users\*\AppData\Local\Programs\Python\Python*\python.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty DirectoryName)
 
 # Build PATH
@@ -15,12 +15,12 @@ foreach ($p in $paths) {
 }
 
 # Log file
-$logFile = "C:\Users\vem\pms-stable\pm2-startup.log"
+$logFile = "C:\Users\DELL\makp\dev\PMS\pm2-startup.log"
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 try {
     # Navigate to backend directory
-    Set-Location C:\Users\vem\pms-stable\backend
+    Set-Location C:\Users\DELL\makp\dev\PMS\backend
     Add-Content -Path $logFile -Value "$timestamp - Starting database migration process..."
 
     # Run Alembic migrations
@@ -41,7 +41,7 @@ try {
     Add-Content -Path $logFile -Value "$timestamp - Backend started from ecosystem.config.js"
     
     # Start frontend directly from ecosystem file
-    Set-Location C:\Users\vem\pms-stable\frontend
+    Set-Location C:\Users\DELL\makp\dev\PMS\frontend
     pm2 start ecosystem.config.js
     Add-Content -Path $logFile -Value "$timestamp - Frontend started from ecosystem.config.js"
     
