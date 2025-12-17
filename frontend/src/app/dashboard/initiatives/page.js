@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { useAuth, PermissionGuard } from "@/lib/auth-context"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import {
   useInitiatives,
   useSuperviseeInitiatives,
@@ -761,19 +762,15 @@ function InitiativeSubmissionDialog({ initiative, isOpen, onClose, onSubmit }) {
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="report">Completion Report</Label>
-              <Textarea
-                id="report"
-                value={formData.report}
-                onChange={(e) => setFormData({ ...formData, report: e.target.value })}
-                placeholder="Provide a detailed report of what was completed, challenges faced, outcomes achieved, and any relevant details..."
-                rows={15}
-                className="min-h-[300px] resize-y"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                {formData.report.length} characters
+              <Label htmlFor="report">Completion Report *</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Provide a detailed report of what was completed, challenges faced, outcomes achieved, and any relevant details. Use the toolbar to format your report.
               </p>
+              <RichTextEditor
+                content={formData.report}
+                onChange={(html) => setFormData({ ...formData, report: html })}
+                placeholder="Start typing your completion report here..."
+              />
             </div>
 
             {/* File Upload for Submission */}
@@ -806,121 +803,177 @@ function InitiativeSubmissionDialog({ initiative, isOpen, onClose, onSubmit }) {
 }
 
 function InitiativeReviewDialog({ initiative, isOpen, onClose, onSubmit }) {
+  const [reviewMode, setReviewMode] = useState(null) // null, 'approve', or 'redo'
   const [formData, setFormData] = useState({
     score: 7,
     feedback: "",
     approved: true
   })
 
+  // Reset when dialog opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setReviewMode(null)
+      setFormData({
+        score: 7,
+        feedback: "",
+        approved: true
+      })
+    }
+  }, [isOpen])
+
+  const handleApprove = () => {
+    setReviewMode('approve')
+    setFormData({ ...formData, approved: true })
+  }
+
+  const handleRedo = () => {
+    setReviewMode('redo')
+    setFormData({ ...formData, approved: false })
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
 
     // Validate feedback is required for redo
-    if (!formData.approved && (!formData.feedback || formData.feedback.trim() === '')) {
-      alert('Feedback is required when requesting redo')
+    if (reviewMode === 'redo' && (!formData.feedback || formData.feedback.trim() === '')) {
+      alert('Redo instructions are required. Please explain what needs to be changed.')
       return
     }
 
     onSubmit(formData)
     onClose()
+    setReviewMode(null)
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Review & Grade Initiative</DialogTitle>
-            <DialogDescription>
-              Review the completed work for &ldquo;{initiative?.title}&rdquo; and decide whether to approve or request changes
-            </DialogDescription>
-          </DialogHeader>
+        {reviewMode === null ? (
+          /* Initial Choice Screen */
+          <div>
+            <DialogHeader>
+              <DialogTitle>Review Initiative</DialogTitle>
+              <DialogDescription>
+                How would you like to proceed with &ldquo;{initiative?.title}&rdquo;?
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Decision Buttons */}
-            <div className="grid gap-2">
-              <Label>Decision</Label>
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant={formData.approved ? "default" : "outline"}
-                  onClick={() => setFormData({ ...formData, approved: true })}
-                  className="flex-1"
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Approve & Grade
-                </Button>
-                <Button
-                  type="button"
-                  variant={!formData.approved ? "destructive" : "outline"}
-                  onClick={() => setFormData({ ...formData, approved: false })}
-                  className="flex-1"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Request Redo
-                </Button>
-              </div>
+            <div className="grid gap-4 py-6">
+              <Button
+                onClick={handleApprove}
+                size="lg"
+                className="h-auto py-6 flex flex-col items-center gap-2"
+              >
+                <Check className="h-8 w-8" />
+                <div>
+                  <div className="font-semibold text-lg">Approve & Grade</div>
+                  <div className="text-xs font-normal opacity-90">Work meets requirements</div>
+                </div>
+              </Button>
+
+              <Button
+                onClick={handleRedo}
+                variant="destructive"
+                size="lg"
+                className="h-auto py-6 flex flex-col items-center gap-2"
+              >
+                <X className="h-8 w-8" />
+                <div>
+                  <div className="font-semibold text-lg">Request Redo</div>
+                  <div className="text-xs font-normal opacity-90">Work needs improvements</div>
+                </div>
+              </Button>
             </div>
 
-            {/* Score (only for approval) */}
-            {formData.approved && (
-              <div className="grid gap-2">
-                <Label htmlFor="score">Grade (1-10)</Label>
-                <Select
-                  value={formData.score.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, score: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[...Array(10)].map((_, i) => (
-                      <SelectItem key={i + 1} value={(i + 1).toString()}>
-                        {i + 1} - {i < 3 ? 'Poor' : i < 6 ? 'Fair' : i < 8 ? 'Good' : 'Excellent'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">Rate the quality and completion of the work</p>
-              </div>
-            )}
-
-            {/* Feedback */}
-            <div className="grid gap-2">
-              <Label htmlFor="feedback">
-                {formData.approved ? 'Feedback (Optional)' : 'Redo Instructions *'}
-              </Label>
-              <Textarea
-                id="feedback"
-                value={formData.feedback}
-                onChange={(e) => setFormData({ ...formData, feedback: e.target.value })}
-                placeholder={formData.approved
-                  ? "Provide feedback on the initiative completion"
-                  : "Explain what needs to be redone and why"
-                }
-                rows={5}
-                required={!formData.approved}
-              />
-              {!formData.approved && (
-                <p className="text-xs text-muted-foreground text-red-600">
-                  Be specific about what needs to be changed
-                </p>
-              )}
-            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+            </DialogFooter>
           </div>
+        ) : (
+          /* Approval or Redo Form */
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>
+                {reviewMode === 'approve' ? 'Approve & Grade Initiative' : 'Request Redo'}
+              </DialogTitle>
+              <DialogDescription>
+                {reviewMode === 'approve'
+                  ? 'Provide a grade and optional feedback'
+                  : 'Explain what needs to be improved'}
+              </DialogDescription>
+            </DialogHeader>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant={formData.approved ? "default" : "destructive"}
-            >
-              {formData.approved ? 'Approve & Submit Grade' : 'Request Redo'}
-            </Button>
-          </DialogFooter>
-        </form>
+            <div className="grid gap-4 py-4">
+              {reviewMode === 'approve' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="score">Grade (1-10) *</Label>
+                  <Select
+                    value={formData.score.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, score: parseInt(value) })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[...Array(10)].map((_, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()}>
+                          {i + 1} - {i < 3 ? 'Poor' : i < 6 ? 'Fair' : i < 8 ? 'Good' : 'Excellent'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Rate the quality and completion of the work</p>
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                <Label htmlFor="feedback">
+                  {reviewMode === 'approve' ? 'Feedback (Optional)' : 'Redo Instructions *'}
+                </Label>
+                <Textarea
+                  id="feedback"
+                  value={formData.feedback}
+                  onChange={(e) => setFormData({ ...formData, feedback: e.target.value })}
+                  placeholder={reviewMode === 'approve'
+                    ? "Provide feedback on the work quality, what was done well, suggestions for future work..."
+                    : "Be specific: What needs to be changed? Why? What are your expectations?"
+                  }
+                  rows={6}
+                  className="min-h-[150px]"
+                  required={reviewMode === 'redo'}
+                />
+                {reviewMode === 'redo' && (
+                  <p className="text-xs text-red-600 font-medium">
+                    Required: Be clear and specific about what needs to be redone
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" type="button" onClick={() => setReviewMode(null)}>
+                Back
+              </Button>
+              <Button type="submit" variant={reviewMode === 'approve' ? 'default' : 'destructive'}>
+                {reviewMode === 'approve' ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Approve Initiative
+                  </>
+                ) : (
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Send for Redo
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -1203,8 +1256,8 @@ function InitiativeDetailModal({ initiative, isOpen, onClose, onEdit, onDelete, 
                     {/* Submission Report */}
                     <div>
                       <h4 className="font-medium text-sm mb-2">Completion Report</h4>
-                      <div className="p-3 bg-white border rounded-lg">
-                        <p className="text-sm whitespace-pre-wrap">{submission.report}</p>
+                      <div className="p-3 bg-white border rounded-lg prose prose-sm max-w-none">
+                        <div dangerouslySetInnerHTML={{ __html: submission.report }} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         Submitted by {submission.submitter_name} on {new Date(submission.submitted_at).toLocaleString()}
@@ -1254,13 +1307,27 @@ function InitiativeDetailModal({ initiative, isOpen, onClose, onEdit, onDelete, 
               </div>
             )}
 
-            {/* Feedback */}
+            {/* Feedback - Show prominently for redo requests */}
             {initiative.feedback && (
-              <div>
-                <h3 className="font-semibold mb-2">Feedback</h3>
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm">{initiative.feedback}</p>
+              <div className={initiative.status === 'ONGOING' || initiative.status === 'ongoing'
+                ? 'border-2 border-orange-200 rounded-lg p-4 bg-orange-50'
+                : ''}>
+                <h3 className={`font-semibold mb-2 ${initiative.status === 'ONGOING' || initiative.status === 'ongoing' ? 'text-orange-900 flex items-center gap-2' : ''}`}>
+                  {(initiative.status === 'ONGOING' || initiative.status === 'ongoing') && (
+                    <X className="h-5 w-5" />
+                  )}
+                  {(initiative.status === 'ONGOING' || initiative.status === 'ongoing')
+                    ? 'Redo Instructions from Supervisor'
+                    : 'Supervisor Feedback'}
+                </h3>
+                <div className={`p-3 rounded-lg ${initiative.status === 'ONGOING' || initiative.status === 'ongoing' ? 'bg-white border-2 border-orange-300' : 'bg-muted'}`}>
+                  <p className="text-sm whitespace-pre-wrap">{initiative.feedback}</p>
                 </div>
+                {(initiative.status === 'ONGOING' || initiative.status === 'ongoing') && (
+                  <p className="text-xs text-orange-700 font-medium mt-2">
+                    This initiative has been sent back for improvements. Please address the feedback above and resubmit.
+                  </p>
+                )}
               </div>
             )}
           </div>
