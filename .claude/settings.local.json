@@ -35,7 +35,8 @@
       "Bash(ssh:*)",
       "Bash(Out-Null)",
       "Bash(Write-Host 'Syntax OK' \")",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(timeout 30 python:*)"
     ],
     "deny": [],
     "ask": []
