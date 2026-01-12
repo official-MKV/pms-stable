@@ -13,7 +13,9 @@ module.exports = {
       watch: false,
       max_memory_restart: "500M",
       restart_delay: 5000,
-      kill_timeout: 5000,
+      kill_timeout: 30000, // Increased to 30 seconds to allow migrations to complete
+      min_uptime: 10000, // Must stay up 10 seconds to be considered started
+      max_restarts: 5, // Max 5 restarts in 1 minute
       env: {
         PYTHONUNBUFFERED: "1",
         // Database and JWT secrets are loaded from .env file in the backend directory
