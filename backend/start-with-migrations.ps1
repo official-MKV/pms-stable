@@ -31,10 +31,12 @@ $ErrorActionPreference = "Stop"
 
 if ($migrationExitCode -eq 0) {
     Write-Host "OK - Migrations completed successfully" -ForegroundColor Green
+    Write-Host "Migration output:" -ForegroundColor Gray
     Write-Host $migrationOutput
     Write-Host ""
 } else {
-    Write-Host "ERROR - Migration failed!" -ForegroundColor Red
+    Write-Host "ERROR - Migration failed with exit code: $migrationExitCode" -ForegroundColor Red
+    Write-Host "Migration output:" -ForegroundColor Gray
     Write-Host $migrationOutput -ForegroundColor Red
     Write-Host ""
     Write-Host "Backend will not start due to migration failure." -ForegroundColor Yellow
@@ -42,5 +44,8 @@ if ($migrationExitCode -eq 0) {
 }
 
 # Start the backend
-Write-Host "Starting uvicorn server..." -ForegroundColor Yellow
+Write-Host "=== Starting Uvicorn Server ===" -ForegroundColor Cyan
+Write-Host "Command: python -m uvicorn main:app --host 0.0.0.0 --port 8000" -ForegroundColor Gray
+Write-Host "This will run indefinitely until stopped (Ctrl+C or PM2 stop)" -ForegroundColor Gray
+Write-Host ""
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
