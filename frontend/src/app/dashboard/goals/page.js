@@ -1424,7 +1424,7 @@ export default function GoalsPage() {
           <TabsContent value="team" className="space-y-6">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Review and approve your subordinates' goals
+                Review and approve your subordinates&apos; goals
               </p>
               <Button onClick={() => setIsFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />

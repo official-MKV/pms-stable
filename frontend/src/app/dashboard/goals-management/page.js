@@ -558,17 +558,7 @@ export default function GoalsManagementPage() {
 
   const canCreateOrganizationalGoals = canCreateYearly || canCreateQuarterly
 
-  // Redirect if no permissions
-  if (!canCreateOrganizationalGoals && !canFreezeGoals) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <Shield className="h-16 w-16 text-gray-400 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-        <p className="text-gray-600">You don't have permission to access this page.</p>
-      </div>
-    )
-  }
-
+  // All hooks must be called before any conditional returns
   const { data: goals = [], isLoading } = useGoals()
   const { data: freezeLogs = [] } = useGoalFreezeLogs()
   const createMutation = useCreateGoal()
@@ -578,6 +568,17 @@ export default function GoalsManagementPage() {
   const deleteMutation = useDeleteGoal()
   const freezeMutation = useFreezeGoalsQuarter()
   const unfreezeMutation = useUnfreezeGoalsQuarter()
+
+  // Redirect if no permissions
+  if (!canCreateOrganizationalGoals && !canFreezeGoals) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <Shield className="h-16 w-16 text-gray-400 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+        <p className="text-gray-600">You don&apos;t have permission to access this page.</p>
+      </div>
+    )
+  }
 
   const organizationalGoals = goals.filter((g) => g.type === "YEARLY" || g.type === "QUARTERLY")
 
@@ -788,7 +789,7 @@ export default function GoalsManagementPage() {
               {!canFreezeGoals && (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    You don't have permission to freeze or unfreeze goals. Contact your administrator.
+                    You don&apos;t have permission to freeze or unfreeze goals. Contact your administrator.
                   </p>
                 </div>
               )}
