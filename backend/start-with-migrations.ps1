@@ -1,4 +1,3 @@
-#!/usr/bin/env pwsh
 # Wrapper script that runs migrations before starting the backend
 # Use this with PM2 to ensure migrations are always applied
 
@@ -16,11 +15,11 @@ $migrationOutput = python -m alembic upgrade head 2>&1
 $migrationExitCode = $LASTEXITCODE
 
 if ($migrationExitCode -eq 0) {
-    Write-Host "✓ Migrations completed successfully" -ForegroundColor Green
+    Write-Host "OK - Migrations completed successfully" -ForegroundColor Green
     Write-Host $migrationOutput
     Write-Host ""
 } else {
-    Write-Host "✗ Migration failed!" -ForegroundColor Red
+    Write-Host "ERROR - Migration failed!" -ForegroundColor Red
     Write-Host $migrationOutput -ForegroundColor Red
     Write-Host ""
     Write-Host "Backend will not start due to migration failure." -ForegroundColor Yellow
