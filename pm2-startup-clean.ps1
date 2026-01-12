@@ -39,7 +39,7 @@ try {
     Write-Host "Running database migrations..." -ForegroundColor Yellow
 
     # Run Alembic migrations
-    $migrationOutput = python -m alembic upgrade head 2>&1
+    $migrationOutput = python -m alembic upgrade head 
     $migrationExitCode = $LASTEXITCODE
 
     if ($migrationExitCode -eq 0) {

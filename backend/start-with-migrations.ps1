@@ -7,6 +7,18 @@ Set-Location $backendPath
 
 Write-Host "=== Starting PMS Backend with Migrations ===" -ForegroundColor Cyan
 Write-Host "Backend directory: $backendPath" -ForegroundColor Gray
+Write-Host "Current working directory: $(Get-Location)" -ForegroundColor Gray
+Write-Host "Python path: $(Get-Command python -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)" -ForegroundColor Gray
+Write-Host ""
+
+# Check for .env file
+if (-not (Test-Path ".env")) {
+    Write-Host "ERROR: .env file not found in $backendPath" -ForegroundColor Red
+    Write-Host "Please create .env file with DATABASE_URL and other configuration" -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Host "OK - .env file found" -ForegroundColor Green
 Write-Host ""
 
 # Run migrations
