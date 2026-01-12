@@ -38,9 +38,27 @@ try {
     Add-Content -Path $logFile -Value "$timestamp - Starting database migration process..."
     Write-Host "Running database migrations..." -ForegroundColor Yellow
 
-    # Run Alembic migrations
-    $migrationOutput = python -m alembic upgrade head 2>&1
-    $migrationExitCode = $LASTEXITCODE
+    # Run Alembic migrations with proper output handling
+    # Use Start-Process to avoid output buffering issues
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "python"
+    $psi.Arguments = "-m alembic upgrade head"
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.WorkingDirectory = $backendPath
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    $process.Start() | Out-Null
+
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    $migrationExitCode = $process.ExitCode
+
+    $migrationOutput = $stdout + $stderr
 
     if ($migrationExitCode -eq 0) {
         Add-Content -Path $logFile -Value "$timestamp - Database migrations completed successfully"
@@ -50,6 +68,7 @@ try {
         Add-Content -Path $logFile -Value "$timestamp - ERROR: Database migration failed with exit code $migrationExitCode"
         Add-Content -Path $logFile -Value "$timestamp - Migration error output: $migrationOutput"
         Write-Host "ERROR - Migration failed!" -ForegroundColor Red
+        Write-Host $migrationOutput -ForegroundColor Red
         throw "Database migration failed. Backend startup aborted."
     }
 
