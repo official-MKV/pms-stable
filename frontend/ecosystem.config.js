@@ -7,8 +7,8 @@ module.exports = {
     // cwd defaults to the directory where this ecosystem.config.js file is located
     env: {
       NODE_ENV: 'production',
-      NEXT_PUBLIC_API_URL: 'http://160.226.0.67/:8000/api',
-      NEXT_PUBLIC_WS_URL: 'ws://160.226.0.67/:8000/ws'
+      NEXT_PUBLIC_API_URL: 'http://160.226.0.67:8000/api',
+      NEXT_PUBLIC_WS_URL: 'ws://160.226.0.67:8000/ws'
     },
     autorestart: true,
     watch: false,

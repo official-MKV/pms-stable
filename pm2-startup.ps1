@@ -78,9 +78,18 @@ try {
     Add-Content -Path $logFile -Value "$timestamp - Backend started from ecosystem.config.js"
     Write-Host "OK - Backend started" -ForegroundColor Green
 
-    # Start frontend from ecosystem file
+    # Build and start frontend
     $frontendPath = Join-Path $projectRoot "frontend"
     Set-Location $frontendPath
+
+    Write-Host "Building frontend..." -ForegroundColor Yellow
+    npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "WARNING - Frontend build had issues, but continuing..." -ForegroundColor Yellow
+    } else {
+        Write-Host "OK - Frontend built successfully" -ForegroundColor Green
+    }
+
     Write-Host "Starting frontend with PM2..." -ForegroundColor Yellow
     pm2 start ecosystem.config.js
     Add-Content -Path $logFile -Value "$timestamp - Frontend started from ecosystem.config.js"
