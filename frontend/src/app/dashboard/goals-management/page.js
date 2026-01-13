@@ -575,6 +575,28 @@ export default function GoalsManagementPage() {
   const freezeMutation = useFreezeGoalsQuarter()
   const unfreezeMutation = useUnfreezeGoalsQuarter()
 
+  // Filter organizational goals - must be called before any returns
+  const organizationalGoals = useMemo(() => {
+    let filtered = goals.filter((g) => g.type === "YEARLY" || g.type === "QUARTERLY")
+
+    if (yearFilter !== "all") {
+      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
+    }
+
+    if (quarterFilter !== "all") {
+      filtered = filtered.filter(g => g.quarter === quarterFilter)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(g =>
+        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return filtered
+  }, [goals, yearFilter, quarterFilter, searchTerm])
+
   // Redirect if no permissions
   if (!canCreateOrganizationalGoals && !canFreezeGoals) {
     return (
@@ -606,28 +628,6 @@ export default function GoalsManagementPage() {
     { value: "Q3", label: "Q3 (Jul-Sep)" },
     { value: "Q4", label: "Q4 (Oct-Dec)" }
   ]
-
-  // Filter organizational goals
-  const organizationalGoals = useMemo(() => {
-    let filtered = goals.filter((g) => g.type === "YEARLY" || g.type === "QUARTERLY")
-
-    if (yearFilter !== "all") {
-      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
-    }
-
-    if (quarterFilter !== "all") {
-      filtered = filtered.filter(g => g.quarter === quarterFilter)
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(g =>
-        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    return filtered
-  }, [goals, yearFilter, quarterFilter, searchTerm])
 
   const handleCreate = (data) => {
     createMutation.mutate({

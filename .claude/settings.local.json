@@ -40,7 +40,8 @@
       "Bash(alembic revision:*)",
       "Bash(alembic upgrade:*)",
       "Bash(alembic current:*)",
-      "Bash(alembic history:*)"
+      "Bash(alembic history:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
