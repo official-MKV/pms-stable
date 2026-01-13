@@ -1,0 +1,127 @@
+'use client'
+
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { useAuth } from './auth-context'
+
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+
+export function useWebSocket() {
+  const { token, user } = useAuth()
+  const [isConnected, setIsConnected] = useState(false)
+  const [lastMessage, setLastMessage] = useState(null)
+  const wsRef = useRef(null)
+  const reconnectTimeoutRef = useRef(null)
+  const reconnectAttemptsRef = useRef(0)
+  const MAX_RECONNECT_ATTEMPTS = 5
+  const RECONNECT_DELAY = 3000
+
+  const connect = useCallback(() => {
+    if (!token || !user) {
+      console.log('No token or user, skipping WebSocket connection')
+      return
+    }
+
+    try {
+      // Close existing connection if any
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+
+      const ws = new WebSocket(`${WEBSOCKET_URL}/api/notifications/ws?token=${token}`)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        console.log('WebSocket connected')
+        setIsConnected(true)
+        reconnectAttemptsRef.current = 0
+
+        // Start ping interval to keep connection alive
+        const pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send('ping')
+          }
+        }, 30000) // Ping every 30 seconds
+
+        // Store ping interval for cleanup
+        ws.pingInterval = pingInterval
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          setLastMessage(data)
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected')
+        setIsConnected(false)
+
+        // Clear ping interval
+        if (ws.pingInterval) {
+          clearInterval(ws.pingInterval)
+        }
+
+        // Attempt to reconnect
+        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttemptsRef.current += 1
+          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`)
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect()
+          }, RECONNECT_DELAY)
+        } else {
+          console.log('Max reconnection attempts reached')
+        }
+      }
+
+    } catch (error) {
+      console.error('Error establishing WebSocket connection:', error)
+    }
+  }, [token, user])
+
+  // Connect on mount and when token changes
+  useEffect(() => {
+    connect()
+
+    // Cleanup on unmount
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        if (wsRef.current.pingInterval) {
+          clearInterval(wsRef.current.pingInterval)
+        }
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+  }, [connect])
+
+  const sendMessage = useCallback((message) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(message)
+    } else {
+      console.warn('WebSocket is not connected')
+    }
+  }, [])
+
+  const markAsRead = useCallback((notificationId) => {
+    sendMessage(`mark_read:${notificationId}`)
+  }, [sendMessage])
+
+  return {
+    isConnected,
+    lastMessage,
+    sendMessage,
+    markAsRead,
+    reconnect: connect
+  }
+}
