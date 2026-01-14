@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Plus, Users, Search, Filter, MoreHorizontal, Edit, Trash2, Mail, Eye, Send, Key } from "lucide-react"
 import { GET, POST } from "@/lib/api"
 import { toast } from "sonner"
@@ -272,6 +272,42 @@ export default function UsersPage() {
     setEditingUser(null)
   }
 
+  // Fetch eligible supervisors for a given organization and level
+  const fetchEligibleSupervisors = useCallback(async (organizationId, userLevel) => {
+    if (!organizationId) return []
+
+    const usersArray = Array.isArray(users) ? users : []
+
+    // Filter users from the same organization who could be supervisors
+    const eligibleSupervisors = usersArray.filter(user => {
+      // Must be from the same organization
+      if (user.organization_id !== organizationId) return false
+
+      // Must be active
+      if (user.status !== 'ACTIVE') return false
+
+      // Exclude the user being edited
+      if (editingUser && user.id === editingUser.id) return false
+
+      // If userLevel is provided, supervisor should have a higher level (lower number = higher rank)
+      // Or we could require supervisor to have a higher level number depending on system design
+      // For now, just return all active users from same org as potential supervisors
+      if (userLevel && user.level) {
+        // Assuming higher level number = more senior (adjust if needed)
+        return Number(user.level) > Number(userLevel)
+      }
+
+      return true
+    }).map(user => ({
+      id: user.id,
+      name: user.name || [user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' '),
+      level: user.level,
+      job_title: user.job_title,
+    }))
+
+    return eligibleSupervisors
+  }, [users, editingUser])
+
   // Helper functions to get organization and role names
   const getOrganizationName = (orgId) => {
     const organizationsArray = Array.isArray(organizations) ? organizations : []
@@ -515,6 +551,7 @@ export default function UsersPage() {
           onSubmit={editingUser ? handleUpdate : handleCreate}
           organizations={organizations}
           roles={roles}
+          onFetchSupervisors={fetchEligibleSupervisors}
         />
 
         <UserDetailsDialog
