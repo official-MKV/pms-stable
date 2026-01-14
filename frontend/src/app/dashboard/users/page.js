@@ -513,6 +513,8 @@ export default function UsersPage() {
           isOpen={isFormOpen}
           onClose={handleCloseForm}
           onSubmit={editingUser ? handleUpdate : handleCreate}
+          organizations={organizations}
+          roles={roles}
         />
 
         <UserDetailsDialog

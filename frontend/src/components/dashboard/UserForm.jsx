@@ -336,7 +336,7 @@ export function UserForm({
                     searchPlaceholder="Search units..."
                     options={organizations.map((org) => ({
                       value: org.id,
-                      label: `${org.name} (Level ${org.level})`,
+                      label: `${org.name} (${org.level})`,
                     }))}
                     disabled={submitting || loading}
                   />
@@ -403,7 +403,7 @@ export function UserForm({
                   searchPlaceholder="Search supervisors..."
                   options={eligibleSupervisors.map((u) => ({
                     value: u.id,
-                    label: `${u.name} (Level ${u.level})`,
+                    label: `${u.name}${u.level ? ` (Grade ${u.level})` : ''}${u.job_title ? ` - ${u.job_title}` : ''}`,
                   }))}
                   disabled={submitting || loading || !formData.organization_id}
                 />
