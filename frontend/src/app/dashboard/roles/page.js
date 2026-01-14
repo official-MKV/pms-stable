@@ -50,6 +50,7 @@ import {
   useUpdateRole,
   useDeleteRole,
 } from "@/lib/react-query"
+import RoleForm from "@/components/dashboard/RoleForm"
 
 const scopeOverrideOptions = {
   none: {
@@ -68,247 +69,246 @@ const scopeOverrideOptions = {
     color: "bg-purple-100 text-purple-800"
   }
 }
-
-// Helper to format permission display names
+ 
 const formatPermissionName = (permission) => {
   return permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
-function RoleForm({ role, isOpen, onClose, onSubmit }) {
-  const { data: permissionGroups = {}, isLoading: permissionsLoading } = usePermissions()
+// function RoleForm({ role, isOpen, onClose, onSubmit }) {
+//   const { data: permissionGroups = {}, isLoading: permissionsLoading } = usePermissions()
 
-  const [formData, setFormData] = useState({
-    name: role?.name || "",
-    description: role?.description || "",
-    is_leadership: role?.is_leadership || false,
-    scope_override: role?.scope_override || "none",
-    permissions: role?.permissions || []
-  })
+//   const [formData, setFormData] = useState({
+//     name: role?.name || "",
+//     description: role?.description || "",
+//     is_leadership: role?.is_leadership || false,
+//     scope_override: role?.scope_override || "none",
+//     permissions: role?.permissions || []
+//   })
 
-  // Update form when role changes (for editing)
-  useEffect(() => {
-    if (role) {
-      setFormData({
-        name: role.name || "",
-        description: role.description || "",
-        is_leadership: role.is_leadership || false,
-        scope_override: role.scope_override || "none",
-        permissions: role.permissions || []
-      })
-    } else {
-      // Reset form when no role (creating new)
-      setFormData({
-        name: "",
-        description: "",
-        is_leadership: false,
-        scope_override: "none",
-        permissions: []
-      })
-    }
-  }, [role, isOpen])
+//   // Update form when role changes (for editing)
+//   useEffect(() => {
+//     if (role) {
+//       setFormData({
+//         name: role.name || "",
+//         description: role.description || "",
+//         is_leadership: role.is_leadership || false,
+//         scope_override: role.scope_override || "none",
+//         permissions: role.permissions || []
+//       })
+//     } else {
+//       // Reset form when no role (creating new)
+//       setFormData({
+//         name: "",
+//         description: "",
+//         is_leadership: false,
+//         scope_override: "none",
+//         permissions: []
+//       })
+//     }
+//   }, [role, isOpen])
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-    onClose()
-  }
+//   const handleSubmit = (e) => {
+//     e.preventDefault()
+//     onSubmit(formData)
+//     onClose()
+//   }
 
-  const handlePermissionChange = (permission, checked) => {
-    setFormData(prev => ({
-      ...prev,
-      permissions: checked
-        ? [...prev.permissions, permission]
-        : prev.permissions.filter(p => p !== permission)
-    }))
-  }
+//   const handlePermissionChange = (permission, checked) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       permissions: checked
+//         ? [...prev.permissions, permission]
+//         : prev.permissions.filter(p => p !== permission)
+//     }))
+//   }
 
-  const selectAllInCategory = (category, permissions) => {
-    const allSelected = permissions.every(p => formData.permissions.includes(p))
-    if (allSelected) {
-      // Deselect all in category
-      setFormData(prev => ({
-        ...prev,
-        permissions: prev.permissions.filter(p => !permissions.includes(p))
-      }))
-    } else {
-      // Select all in category
-      setFormData(prev => ({
-        ...prev,
-        permissions: [...new Set([...prev.permissions, ...permissions])]
-      }))
-    }
-  }
+//   const selectAllInCategory = (category, permissions) => {
+//     const allSelected = permissions.every(p => formData.permissions.includes(p))
+//     if (allSelected) {
+//       // Deselect all in category
+//       setFormData(prev => ({
+//         ...prev,
+//         permissions: prev.permissions.filter(p => !permissions.includes(p))
+//       }))
+//     } else {
+//       // Select all in category
+//       setFormData(prev => ({
+//         ...prev,
+//         permissions: [...new Set([...prev.permissions, ...permissions])]
+//       }))
+//     }
+//   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {role ? 'Edit Role' : 'Create Role'}
-            </DialogTitle>
-            <DialogDescription>
-              {role
-                ? 'Update the role details and permissions below.'
-                : 'Create a new role with specific permissions and access scope.'}
-            </DialogDescription>
-          </DialogHeader>
+//   return (
+//     <Dialog open={isOpen} onOpenChange={onClose}>
+//       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+//         <form onSubmit={handleSubmit}>
+//           <DialogHeader>
+//             <DialogTitle>
+//               {role ? 'Edit Role' : 'Create Role'}
+//             </DialogTitle>
+//             <DialogDescription>
+//               {role
+//                 ? 'Update the role details and permissions below.'
+//                 : 'Create a new role with specific permissions and access scope.'}
+//             </DialogDescription>
+//           </DialogHeader>
 
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="permissions">Permissions</TabsTrigger>
-            </TabsList>
+//           <Tabs defaultValue="basic" className="w-full">
+//             <TabsList className="grid w-full grid-cols-2">
+//               <TabsTrigger value="basic">Basic Info</TabsTrigger>
+//               <TabsTrigger value="permissions">Permissions</TabsTrigger>
+//             </TabsList>
 
-            <TabsContent value="basic" className="space-y-4">
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Role Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., HR Manager, Team Lead, Admin"
-                    required
-                  />
-                </div>
+//             <TabsContent value="basic" className="space-y-4">
+//               <div className="grid gap-4 py-4">
+//                 <div className="grid gap-2">
+//                   <Label htmlFor="name">Role Name</Label>
+//                   <Input
+//                     id="name"
+//                     value={formData.name}
+//                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+//                     placeholder="e.g., HR Manager, Team Lead, Admin"
+//                     required
+//                   />
+//                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe the role's responsibilities and scope"
-                    rows={3}
-                  />
-                </div>
+//                 <div className="grid gap-2">
+//                   <Label htmlFor="description">Description</Label>
+//                   <Textarea
+//                     id="description"
+//                     value={formData.description}
+//                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+//                     placeholder="Describe the role's responsibilities and scope"
+//                     rows={3}
+//                   />
+//                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="scope_override">Access Scope</Label>
-                  <Select
-                    value={formData.scope_override}
-                    onValueChange={(value) => setFormData({ ...formData, scope_override: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select access scope" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(scopeOverrideOptions).map(([key, option]) => (
-                        <SelectItem key={key} value={key}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{option.label}</span>
-                            <span className="text-xs text-muted-foreground">{option.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+//                 <div className="grid gap-2">
+//                   <Label htmlFor="scope_override">Access Scope</Label>
+//                   <Select
+//                     value={formData.scope_override}
+//                     onValueChange={(value) => setFormData({ ...formData, scope_override: value })}
+//                   >
+//                     <SelectTrigger>
+//                       <SelectValue placeholder="Select access scope" />
+//                     </SelectTrigger>
+//                     <SelectContent>
+//                       {Object.entries(scopeOverrideOptions).map(([key, option]) => (
+//                         <SelectItem key={key} value={key}>
+//                           <div className="flex flex-col">
+//                             <span className="font-medium">{option.label}</span>
+//                             <span className="text-xs text-muted-foreground">{option.description}</span>
+//                           </div>
+//                         </SelectItem>
+//                       ))}
+//                     </SelectContent>
+//                   </Select>
+//                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="is_leadership"
-                    checked={formData.is_leadership}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_leadership: checked })}
-                  />
-                  <Label htmlFor="is_leadership" className="text-sm">
-                    Leadership Role
-                    <p className="text-xs text-muted-foreground">
-                      Users with this role become leaders of their organizational level
-                    </p>
-                  </Label>
-                </div>
-              </div>
-            </TabsContent>
+//                 <div className="flex items-center space-x-2">
+//                   <Checkbox
+//                     id="is_leadership"
+//                     checked={formData.is_leadership}
+//                     onCheckedChange={(checked) => setFormData({ ...formData, is_leadership: checked })}
+//                   />
+//                   <Label htmlFor="is_leadership" className="text-sm">
+//                     Leadership Role
+//                     <p className="text-xs text-muted-foreground">
+//                       Users with this role become leaders of their organizational level
+//                     </p>
+//                   </Label>
+//                 </div>
+//               </div>
+//             </TabsContent>
 
-            <TabsContent value="permissions" className="space-y-4">
-              <div className="py-4">
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium mb-2">Selected Scope Override:</h4>
-                  <Badge className={scopeOverrideOptions[formData.scope_override].color}>
-                    {scopeOverrideOptions[formData.scope_override].label}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {scopeOverrideOptions[formData.scope_override].description}
-                  </p>
-                </div>
+//             <TabsContent value="permissions" className="space-y-4">
+//               <div className="py-4">
+//                 <div className="mb-4">
+//                   <h4 className="text-sm font-medium mb-2">Selected Scope Override:</h4>
+//                   <Badge className={scopeOverrideOptions[formData.scope_override].color}>
+//                     {scopeOverrideOptions[formData.scope_override].label}
+//                   </Badge>
+//                   <p className="text-xs text-muted-foreground mt-1">
+//                     {scopeOverrideOptions[formData.scope_override].description}
+//                   </p>
+//                 </div>
 
-                <Separator className="my-4" />
+//                 <Separator className="my-4" />
 
-                {permissionsLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {Object.entries(permissionGroups).map(([groupKey, groupData]) => {
-                      const categoryPermissions = groupData.permissions || []
-                      const selectedCount = categoryPermissions.filter(p =>
-                        formData.permissions.includes(p)
-                      ).length
-                      const allSelected = selectedCount === categoryPermissions.length && categoryPermissions.length > 0
+//                 {permissionsLoading ? (
+//                   <div className="space-y-4">
+//                     <Skeleton className="h-20 w-full" />
+//                     <Skeleton className="h-20 w-full" />
+//                     <Skeleton className="h-20 w-full" />
+//                   </div>
+//                 ) : (
+//                   <div className="space-y-6">
+//                     {Object.entries(permissionGroups).map(([groupKey, groupData]) => {
+//                       const categoryPermissions = groupData.permissions || []
+//                       const selectedCount = categoryPermissions.filter(p =>
+//                         formData.permissions.includes(p)
+//                       ).length
+//                       const allSelected = selectedCount === categoryPermissions.length && categoryPermissions.length > 0
 
-                      return (
-                        <div key={groupKey} className="space-y-3 p-4 border rounded-lg bg-gray-50">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium text-sm">{groupData.name}</h4>
-                              <p className="text-xs text-muted-foreground">{groupData.description}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">
-                                {selectedCount}/{categoryPermissions.length}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => selectAllInCategory(groupData.name, categoryPermissions)}
-                              >
-                                {allSelected ? 'Deselect All' : 'Select All'}
-                              </Button>
-                            </div>
-                          </div>
+//                       return (
+//                         <div key={groupKey} className="space-y-3 p-4 border rounded-lg bg-gray-50">
+//                           <div className="flex items-center justify-between">
+//                             <div>
+//                               <h4 className="font-medium text-sm">{groupData.name}</h4>
+//                               <p className="text-xs text-muted-foreground">{groupData.description}</p>
+//                             </div>
+//                             <div className="flex items-center gap-2">
+//                               <span className="text-xs text-muted-foreground">
+//                                 {selectedCount}/{categoryPermissions.length}
+//                               </span>
+//                               <Button
+//                                 type="button"
+//                                 variant="outline"
+//                                 size="sm"
+//                                 onClick={() => selectAllInCategory(groupData.name, categoryPermissions)}
+//                               >
+//                                 {allSelected ? 'Deselect All' : 'Select All'}
+//                               </Button>
+//                             </div>
+//                           </div>
 
-                          <div className="grid grid-cols-1 gap-2 mt-3">
-                            {categoryPermissions.map((permission) => (
-                              <div key={permission} className="flex items-center space-x-2 bg-white p-2 rounded">
-                                <Checkbox
-                                  id={permission}
-                                  checked={formData.permissions.includes(permission)}
-                                  onCheckedChange={(checked) => handlePermissionChange(permission, checked)}
-                                />
-                                <Label htmlFor={permission} className="text-sm flex-1 cursor-pointer">
-                                  {formatPermissionName(permission)}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+//                           <div className="grid grid-cols-1 gap-2 mt-3">
+//                             {categoryPermissions.map((permission) => (
+//                               <div key={permission} className="flex items-center space-x-2 bg-white p-2 rounded">
+//                                 <Checkbox
+//                                   id={permission}
+//                                   checked={formData.permissions.includes(permission)}
+//                                   onCheckedChange={(checked) => handlePermissionChange(permission, checked)}
+//                                 />
+//                                 <Label htmlFor={permission} className="text-sm flex-1 cursor-pointer">
+//                                   {formatPermissionName(permission)}
+//                                 </Label>
+//                               </div>
+//                             ))}
+//                           </div>
+//                         </div>
+//                       )
+//                     })}
+//                   </div>
+//                 )}
+//               </div>
+//             </TabsContent>
+//           </Tabs>
 
-          <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {role ? 'Update Role' : 'Create Role'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
+//           <DialogFooter className="mt-6">
+//             <Button type="button" variant="outline" onClick={onClose}>
+//               Cancel
+//             </Button>
+//             <Button type="submit">
+//               {role ? 'Update Role' : 'Create Role'}
+//             </Button>
+//           </DialogFooter>
+//         </form>
+//       </DialogContent>
+//     </Dialog>
+//   )
+// }
 
 function RoleDetailsDialog({ role, isOpen, onClose }) {
   if (!role) return null

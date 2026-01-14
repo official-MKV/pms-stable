@@ -4,7 +4,8 @@ from fastapi.staticfiles import StaticFiles
 import os
 import logging
 from decouple import config
-
+from dotenv import load_dotenv
+load_dotenv()  
 # Enable debug logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

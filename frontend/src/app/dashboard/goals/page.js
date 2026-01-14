@@ -273,15 +273,18 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
   const currentQuarter = Math.ceil(currentMonth / 3)
 
   // Determine available goal types based on permissions and context
-  const availableTypes = []
-  if (isDepartmentalOnly) {
-    // When on departmental tab, only show departmental option
-    if (canCreateDepartmental) availableTypes.push({ value: "DEPARTMENTAL", label: "Departmental" })
-  } else {
-    // On organizational tab, show yearly/quarterly
-    if (canCreateYearly) availableTypes.push({ value: "YEARLY", label: "Yearly (Company-wide)" })
-    if (canCreateQuarterly) availableTypes.push({ value: "QUARTERLY", label: "Quarterly (Company-wide)" })
-  }
+  const availableTypes = useMemo(() => {
+    const types = []
+    if (isDepartmentalOnly) {
+      // When on departmental tab, only show departmental option
+      if (canCreateDepartmental) types.push({ value: "DEPARTMENTAL", label: "Departmental" })
+    } else {
+      // On organizational tab, show yearly/quarterly
+      if (canCreateYearly) types.push({ value: "YEARLY", label: "Yearly (Company-wide)" })
+      if (canCreateQuarterly) types.push({ value: "QUARTERLY", label: "Quarterly (Company-wide)" })
+    }
+    return types
+  }, [isDepartmentalOnly, canCreateDepartmental, canCreateYearly, canCreateQuarterly])
 
   // Filter organizations based on user's scope
   const scopedOrganizations = useMemo(() => {
@@ -1096,7 +1099,7 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor, super
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Description */}
+          
           {goal.description && (
             <div className="space-y-2">
               <h3 className="font-semibold text-sm text-gray-700">Description</h3>
