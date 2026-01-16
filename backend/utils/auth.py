@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -11,13 +11,14 @@ import secrets
 import string
 
 from database import get_db
-from models import User, UserStatus
+from models import User, UserStatus, RefreshToken
 from schemas.auth import UserSession
 from utils.permissions import UserPermissions
 
 SECRET_KEY = config("JWT_SECRET_KEY", default="your-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour for access tokens
+REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days for refresh tokens
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -69,6 +70,89 @@ def get_role_version(user: User) -> int:
     if user.role and getattr(user.role, 'updated_at', None):
         return int(user.role.updated_at.timestamp())
     return 1
+
+
+def generate_refresh_token() -> str:
+    """Generate a secure random refresh token"""
+    return secrets.token_urlsafe(64)
+
+
+def create_refresh_token(
+    db: Session,
+    user_id: uuid.UUID,
+    user_agent: Optional[str] = None,
+    ip_address: Optional[str] = None
+) -> RefreshToken:
+    """Create a new refresh token and store it in the database"""
+    token = generate_refresh_token()
+    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    refresh_token = RefreshToken(
+        token=token,
+        user_id=user_id,
+        expires_at=expires_at,
+        user_agent=user_agent,
+        ip_address=ip_address
+    )
+    db.add(refresh_token)
+    db.commit()
+    db.refresh(refresh_token)
+
+    return refresh_token
+
+
+def validate_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
+    """Validate a refresh token and return it if valid"""
+    refresh_token = db.query(RefreshToken).filter(
+        RefreshToken.token == token,
+        RefreshToken.revoked == False
+    ).first()
+
+    if not refresh_token:
+        return None
+
+    # Check if token has expired
+    if refresh_token.expires_at < datetime.utcnow():
+        return None
+
+    return refresh_token
+
+
+def revoke_refresh_token(db: Session, token: str) -> bool:
+    """Revoke a refresh token"""
+    refresh_token = db.query(RefreshToken).filter(
+        RefreshToken.token == token
+    ).first()
+
+    if refresh_token:
+        refresh_token.revoked = True
+        refresh_token.revoked_at = datetime.utcnow()
+        db.commit()
+        return True
+    return False
+
+
+def revoke_all_user_refresh_tokens(db: Session, user_id: uuid.UUID) -> int:
+    """Revoke all refresh tokens for a user (logout from all devices)"""
+    count = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked == False
+    ).update({
+        "revoked": True,
+        "revoked_at": datetime.utcnow()
+    })
+    db.commit()
+    return count
+
+
+def cleanup_expired_tokens(db: Session) -> int:
+    """Remove expired and revoked tokens from database (for maintenance)"""
+    count = db.query(RefreshToken).filter(
+        (RefreshToken.expires_at < datetime.utcnow()) |
+        (RefreshToken.revoked == True)
+    ).delete()
+    db.commit()
+    return count
 
 
 def get_current_user(

@@ -162,7 +162,7 @@ function NavGroup({ title, items }) {
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   asChild
-                  className={isActive ? "bg-black text-white" : ""}
+                  className={isActive ? "bg-blue-800/20 text-black hover:bg-gray-800/30" : ""}
                 >
                   <Link href={item.url}>
                     <item.icon className="h-4 w-4" />

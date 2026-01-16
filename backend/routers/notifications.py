@@ -11,7 +11,7 @@ from datetime import datetime
 from uuid import UUID
 
 from database import get_db
-from models import Notification, NotificationType, NotificationPriority, User
+from models import Notification, NotificationType, NotificationPriority, User, UserStatus
 from schemas.notifications import (
     NotificationResponse, NotificationListResponse,
     NotificationUpdate, NotificationStats
@@ -61,7 +61,7 @@ async def websocket_endpoint(
 
         # Verify user exists and is active
         user = db.query(User).filter(User.id == user_id).first()
-        if not user or user.status.value != 'active':
+        if not user or user.status != UserStatus.ACTIVE:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 

@@ -221,6 +221,30 @@ class UserHistory(Base):
     user = relationship("User", foreign_keys=[user_id], back_populates="user_history")
     admin = relationship("User", foreign_keys=[admin_id])
 
+
+class RefreshToken(Base):
+    """
+    Refresh tokens for extended session management
+    Allows users to get new access tokens without re-authenticating
+    """
+    __tablename__ = "refresh_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked = Column(Boolean, default=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Device/session tracking (optional)
+    user_agent = Column(String(500), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="refresh_tokens")
+
+
 class Goal(Base):
     """
     Hierarchical goal management with cascading achievement

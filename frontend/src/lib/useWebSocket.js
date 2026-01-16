@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuth } from './auth-context'
+import { tokenUtils } from './api'
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
 
 export function useWebSocket() {
-  const { token, user } = useAuth()
+  const { user } = useAuth()
   const [isConnected, setIsConnected] = useState(false)
   const [lastMessage, setLastMessage] = useState(null)
   const wsRef = useRef(null)
@@ -16,6 +17,9 @@ export function useWebSocket() {
   const RECONNECT_DELAY = 3000
 
   const connect = useCallback(() => {
+    // Get token from cookies using tokenUtils
+    const token = tokenUtils.getToken()
+
     if (!token || !user) {
       console.log('No token or user, skipping WebSocket connection')
       return
@@ -84,9 +88,9 @@ export function useWebSocket() {
     } catch (error) {
       console.error('Error establishing WebSocket connection:', error)
     }
-  }, [token, user])
+  }, [user])
 
-  // Connect on mount and when token changes
+  // Connect on mount and when user changes
   useEffect(() => {
     connect()
 

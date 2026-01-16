@@ -1,11 +1,14 @@
 """
 Authentication API Router
 Based on CLAUDE.md specification with onboarding flow
+Supports refresh token pattern for extended sessions
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
+from pydantic import BaseModel
+from typing import Optional
 
 from database import get_db
 from models import User, UserStatus
@@ -16,20 +19,34 @@ from schemas.auth import (
 from utils.auth import (
     authenticate_user, create_access_token, get_current_user,
     verify_password, get_password_hash, generate_onboarding_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES, get_role_version
+    ACCESS_TOKEN_EXPIRE_MINUTES, get_role_version,
+    create_refresh_token, validate_refresh_token, revoke_refresh_token,
+    revoke_all_user_refresh_tokens, REFRESH_TOKEN_EXPIRE_DAYS
 )
 from utils.permissions import UserPermissions
 
 router = APIRouter(tags=["authentication"])
 
-@router.post("/login", response_model=LoginResponse)
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int  # Access token expiry in seconds
+
+@router.post("/login")
 async def login(
     login_data: LoginRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     User login with email and password
-    Returns access token and user context
+    Returns access token, refresh token, and user context
     """
     user = authenticate_user(db, login_data.email, login_data.password)
     if not user:
@@ -54,6 +71,16 @@ async def login(
         expires_delta=access_token_expires
     )
 
+    # Create refresh token
+    user_agent = request.headers.get("user-agent")
+    client_ip = request.client.host if request.client else None
+    refresh_token_obj = create_refresh_token(
+        db=db,
+        user_id=user.id,
+        user_agent=user_agent,
+        ip_address=client_ip
+    )
+
     # Get user permissions
     permission_service = UserPermissions(db)
     user_perms = permission_service.get_user_effective_permissions(user)
@@ -65,10 +92,13 @@ async def login(
     name_parts.append(user.last_name)
     full_name = " ".join(name_parts)
 
-    return LoginResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user={
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token_obj.token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # in seconds
+        "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # in seconds
+        "user": {
             "id": str(user.id),
             "email": user.email,
             "name": full_name,
@@ -79,17 +109,35 @@ async def login(
             "role_name": user.role.name,
             "status": user.status.value
         },
-        permissions=user_perms["permissions"],
-        scope=user_perms["effective_scope"]
-    )
+        "permissions": user_perms["permissions"],
+        "scope": user_perms["effective_scope"]
+    }
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
+    logout_all_devices: bool = False
+
 
 @router.post("/logout")
-async def logout(current_user: UserSession = Depends(get_current_user)):
+async def logout(
+    logout_data: Optional[LogoutRequest] = None,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    User logout - invalidate session
-    In a more complete implementation, this would blacklist the token
+    User logout - revokes refresh token(s)
+    If logout_all_devices is True, revokes all refresh tokens for the user
     """
-    return {"message": "Successfully logged out"}
+    if logout_data and logout_data.logout_all_devices:
+        # Revoke all refresh tokens for this user
+        revoke_all_user_refresh_tokens(db, current_user.user_id)
+        return {"message": "Successfully logged out from all devices"}
+    elif logout_data and logout_data.refresh_token:
+        # Revoke the specific refresh token
+        revoke_refresh_token(db, logout_data.refresh_token)
+        return {"message": "Successfully logged out"}
+    else:
+        return {"message": "Successfully logged out"}
 
 @router.post("/onboard")
 async def onboard_user(
@@ -194,29 +242,68 @@ async def get_session_data(current_user: UserSession = Depends(get_current_user)
     return current_user
 
 @router.post("/refresh")
-async def refresh_token(
-    current_user: UserSession = Depends(get_current_user),
+async def refresh_access_token(
+    refresh_data: RefreshTokenRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
-    Refresh access token with updated role version
+    Refresh access token using refresh token
+    Does NOT require valid access token - allows refreshing expired sessions
     """
-    # Get fresh user data for role version
-    user = db.query(User).filter(User.id == current_user.user_id).first()
+    # Validate refresh token
+    refresh_token_obj = validate_refresh_token(db, refresh_data.refresh_token)
+    if not refresh_token_obj:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
+
+    # Get user from refresh token
+    user = db.query(User).filter(User.id == refresh_token_obj.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Create new access token with current role version
+    if user.status != UserStatus.ACTIVE:
+        # Revoke the refresh token if user is no longer active
+        revoke_refresh_token(db, refresh_data.refresh_token)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is not active"
+        )
+
+    # Create new access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
-            "sub": str(current_user.user_id),
+            "sub": str(user.id),
             "role_version": get_role_version(user)
         },
         expires_delta=access_token_expires
     )
 
+    # Optionally rotate refresh token for better security
+    # Revoke old token and create new one
+    revoke_refresh_token(db, refresh_data.refresh_token)
+    user_agent = request.headers.get("user-agent")
+    client_ip = request.client.host if request.client else None
+    new_refresh_token = create_refresh_token(
+        db=db,
+        user_id=user.id,
+        user_agent=user_agent,
+        ip_address=client_ip
+    )
+
+    # Get user permissions
+    permission_service = UserPermissions(db)
+    user_perms = permission_service.get_user_effective_permissions(user)
+
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "refresh_token": new_refresh_token.token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        "permissions": user_perms["permissions"],
+        "scope": user_perms["effective_scope"]
     }

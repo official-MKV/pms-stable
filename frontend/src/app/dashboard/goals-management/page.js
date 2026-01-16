@@ -253,7 +253,6 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="YEARLY">Yearly Goal</SelectItem>
                     <SelectItem value="QUARTERLY">Quarterly Goal</SelectItem>
                   </SelectContent>
                 </Select>
@@ -722,7 +721,7 @@ export default function GoalsManagementPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <p className="text-sm text-gray-600">
-                Manage company-wide yearly and quarterly goals
+                Manage company-wide quarterly goals
               </p>
               {canFreezeGoals && (
                 <>

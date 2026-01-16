@@ -11,7 +11,7 @@ import uuid
 
 from models import (
     Initiative, InitiativeStatus, InitiativeType, InitiativeUrgency, InitiativeAssignment, InitiativeSubmission,
-    InitiativeDocument, InitiativeExtension, ExtensionStatus, User, UserStatus
+    InitiativeDocument, InitiativeExtension, ExtensionStatus, User, UserStatus, InitiativeSubTask
 )
 from utils.notifications import NotificationService
 from utils.permissions import UserPermissions
@@ -27,7 +27,8 @@ class InitiativeWorkflowService:
         self.permission_service = UserPermissions(db)
 
     def create_initiative(self, creator: User, initiative_data: dict, assignee_ids: List[uuid.UUID],
-                          team_head_id: Optional[uuid.UUID] = None, document_ids: Optional[List[uuid.UUID]] = None) -> Initiative:
+                          team_head_id: Optional[uuid.UUID] = None, document_ids: Optional[List[uuid.UUID]] = None,
+                          subtasks: Optional[List[dict]] = None) -> Initiative:
         """
         Create new initiative with scope validation and assignment
 
@@ -35,6 +36,7 @@ class InitiativeWorkflowService:
         - If creator is assigning to themselves: Status = PENDING_APPROVAL (requires supervisor approval)
         - If creator is a supervisor creating for supervisee(s): Status = ASSIGNED (no approval needed)
         - Any other case defaults to PENDING_APPROVAL for safety
+        - Can optionally create sub-tasks along with the initiative
         """
         # Validate assignment scope
         self.validate_initiative_assignment(creator, assignee_ids)
@@ -90,6 +92,19 @@ class InitiativeWorkflowService:
         # Attach documents if provided
         if document_ids:
             self.attach_documents_to_initiative(initiative.id, document_ids)
+
+        # Create sub-tasks if provided
+        if subtasks:
+            for order, subtask_data in enumerate(subtasks):
+                subtask = InitiativeSubTask(
+                    initiative_id=initiative.id,
+                    title=subtask_data['title'],
+                    description=subtask_data.get('description'),
+                    status='pending',
+                    sequence_order=order,
+                    created_by=creator.id
+                )
+                self.db.add(subtask)
 
         self.db.commit()
 

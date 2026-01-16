@@ -14,6 +14,41 @@ export function NotificationProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const queryClient = useQueryClient()
 
+  // Map notification types to query keys that should be invalidated
+  const getQueryKeysToInvalidate = useCallback((notificationType) => {
+    const typeToQueryKeys = {
+      // Initiative notifications
+      'INITIATIVE_ASSIGNED': ['initiatives'],
+      'INITIATIVE_APPROVED': ['initiatives'],
+      'INITIATIVE_REJECTED': ['initiatives'],
+      'INITIATIVE_STATUS_CHANGED': ['initiatives'],
+      'INITIATIVE_SUBMITTED': ['initiatives'],
+      'INITIATIVE_REVIEWED': ['initiatives'],
+      'INITIATIVE_DEADLINE_APPROACHING': ['initiatives'],
+
+      // Goal notifications
+      'GOAL_ASSIGNED': ['goals'],
+      'GOAL_APPROVED': ['goals'],
+      'GOAL_REJECTED': ['goals'],
+      'GOAL_PROGRESS_UPDATED': ['goals'],
+      'GOAL_STATUS_CHANGED': ['goals'],
+      'GOAL_DEADLINE_APPROACHING': ['goals'],
+
+      // Task notifications (if you have tasks)
+      'TASK_ASSIGNED': ['tasks'],
+      'TASK_SUBMITTED': ['tasks'],
+      'TASK_REVIEWED': ['tasks'],
+      'TASK_STATUS_CHANGED': ['tasks'],
+      'TASK_DEADLINE_APPROACHING': ['tasks'],
+
+      // User notifications
+      'USER_ROLE_CHANGED': ['users'],
+      'USER_STATUS_CHANGED': ['users'],
+    }
+
+    return typeToQueryKeys[notificationType] || []
+  }, [])
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (!lastMessage) return
@@ -28,8 +63,15 @@ export function NotificationProvider({ children }) {
       // Show toast notification (optional - you can add toast library later)
       console.log('New notification:', newNotification.title)
 
-      // Invalidate queries to refresh data
+      // Invalidate notifications query
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+
+      // Invalidate related data queries based on notification type
+      const relatedQueryKeys = getQueryKeysToInvalidate(newNotification.type)
+      relatedQueryKeys.forEach(queryKey => {
+        console.log(`Invalidating cache for: ${queryKey}`)
+        queryClient.invalidateQueries({ queryKey: [queryKey] })
+      })
     } else if (lastMessage.type === 'marked_read') {
       // Update local state when marked as read
       const notificationId = lastMessage.notification_id
@@ -38,7 +80,7 @@ export function NotificationProvider({ children }) {
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
     }
-  }, [lastMessage, queryClient])
+  }, [lastMessage, queryClient, getQueryKeysToInvalidate])
 
   const addNotification = useCallback((notification) => {
     setNotifications(prev => [notification, ...prev])

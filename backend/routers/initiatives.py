@@ -281,13 +281,19 @@ async def create_initiative(
     #     raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     try:
+        # Convert subtasks to dict format if provided
+        subtasks_data = None
+        if initiative_data.subtasks:
+            subtasks_data = [subtask.dict() for subtask in initiative_data.subtasks]
+
         # Use initiative service to create with validation
         initiative = initiative_service.create_initiative(
             creator=user,
             initiative_data=initiative_data.dict(),
             assignee_ids=initiative_data.assignee_ids,
             team_head_id=initiative_data.team_head_id,
-            document_ids=initiative_data.document_ids
+            document_ids=initiative_data.document_ids,
+            subtasks=subtasks_data
         )
 
         return InitiativeSchema.from_orm(initiative)

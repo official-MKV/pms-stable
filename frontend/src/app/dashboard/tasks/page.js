@@ -151,8 +151,31 @@ function TaskForm({ task, isOpen, onClose, onSubmit }) {
   }
 
   const usersArray = Array.isArray(users) ? users : []
-  const availableUsers = usersArray.filter(u => u.status === 'active')
-  const activeGoals = Array.isArray(goals) ? goals.filter(g => g.status === 'active') : []
+  // Filter out current user and only show active users
+  const availableUsers = usersArray.filter(u => u.status === 'active' && u.id !== user?.user_id)
+
+  // Filter goals based on user's department and scope
+  const activeGoals = Array.isArray(goals) ? goals.filter(g => {
+    // Only show active goals
+    if (g.status !== 'active' && g.status !== 'ACTIVE') return false
+
+    // Show yearly and quarterly goals to everyone
+    if (g.type === 'yearly' || g.type === 'YEARLY' || g.type === 'quarterly' || g.type === 'QUARTERLY') {
+      return true
+    }
+
+    // For departmental goals, filter by user's department unless user has global scope
+    if (g.type === 'departmental' || g.type === 'DEPARTMENTAL') {
+      // If user has global scope, show all departmental goals
+      if (user?.scope === 'global') {
+        return true
+      }
+      // Otherwise, only show goals from user's department
+      return g.organization_id === user?.organization_id
+    }
+
+    return true
+  }) : []
 
   // Get selected goal
   const selectedGoal = activeGoals.find(g => g.id === formData.goal_id)
@@ -279,8 +302,15 @@ function TaskForm({ task, isOpen, onClose, onSubmit }) {
                     {selectedGoal ? (
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
-                          {selectedGoal.type === 'yearly' ? 'Y' : 'Q'}
+                          {selectedGoal.type === 'yearly' || selectedGoal.type === 'YEARLY' ? 'Yearly' :
+                           selectedGoal.type === 'quarterly' || selectedGoal.type === 'QUARTERLY' ? 'Quarterly' :
+                           'Departmental'}
                         </Badge>
+                        {(selectedGoal.type === 'departmental' || selectedGoal.type === 'DEPARTMENTAL') && selectedGoal.organization_name && (
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedGoal.organization_name}
+                          </Badge>
+                        )}
                         <span className="truncate">{selectedGoal.title}</span>
                       </div>
                     ) : (
@@ -312,7 +342,7 @@ function TaskForm({ task, isOpen, onClose, onSubmit }) {
                       {activeGoals.map((goal) => (
                         <CommandItem
                           key={goal.id}
-                          value={`${goal.title} ${goal.type}`}
+                          value={`${goal.title} ${goal.type} ${goal.organization_name || ''}`}
                           onSelect={() => {
                             setFormData({ ...formData, goal_id: goal.id })
                             setGoalOpen(false)
@@ -324,11 +354,18 @@ function TaskForm({ task, isOpen, onClose, onSubmit }) {
                               formData.goal_id === goal.id ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          <div className="flex items-center gap-2 flex-1">
+                          <div className="flex items-center gap-2 flex-1 flex-wrap">
                             <Badge variant="outline" className="text-xs">
-                              {goal.type === 'yearly' ? 'Y' : 'Q'}
+                              {goal.type === 'yearly' || goal.type === 'YEARLY' ? 'Yearly' :
+                               goal.type === 'quarterly' || goal.type === 'QUARTERLY' ? 'Quarterly' :
+                               'Departmental'}
                             </Badge>
-                            <span>{goal.title}</span>
+                            {(goal.type === 'departmental' || goal.type === 'DEPARTMENTAL') && goal.organization_name && (
+                              <Badge variant="secondary" className="text-xs">
+                                {goal.organization_name}
+                              </Badge>
+                            )}
+                            <span className="flex-1">{goal.title}</span>
                           </div>
                         </CommandItem>
                       ))}

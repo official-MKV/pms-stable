@@ -9,11 +9,11 @@ export default function DashboardLayout({ children }) {
   return (
     <AuthGuard>
       <SidebarProvider>
-        <div className="flex min-h-screen w-full">
+        <div className="flex min-h-screen w-full ">
           <AppSidebar />
           <div className="flex-1 flex flex-col">
             <DashboardHeader />
-            <main className="flex-1 p-6 bg-gray-50/50">
+            <main className="flex-1 p-6 bg-white border-[2px] border-gray-400/10">
               {children}
             </main>
           </div>

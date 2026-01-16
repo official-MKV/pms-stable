@@ -836,6 +836,9 @@ export function useNotificationsQuery(params = {}) {
   })
 }
 
+// Alias for useNotificationsQuery
+export const useNotifications = useNotificationsQuery
+
 export function useNotificationStats() {
   return useQuery({
     queryKey: QUERY_KEYS.NOTIFICATION_STATS,

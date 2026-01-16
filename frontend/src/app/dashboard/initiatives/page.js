@@ -136,6 +136,8 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
   const [attachedFiles, setAttachedFiles] = useState([])
   const [goalOpen, setGoalOpen] = useState(false)
   const [assigneeOpen, setAssigneeOpen] = useState(false)
+  const [subtasks, setSubtasks] = useState([]) // Subtasks for the initiative
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
 
   const { data: assignableUsers = [] } = useAssignableUsers()
   const { data: goals = [] } = useGoals()
@@ -159,6 +161,8 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
       })
       setCreateForMyself(isForMyself)
       setAttachedFiles([])
+      setSubtasks([]) // Clear subtasks when editing (they're managed separately)
+      setNewSubtaskTitle("")
     } else if (!initiative && isOpen) {
       // Create mode - reset to defaults
       setFormData({
@@ -173,6 +177,8 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
       })
       setCreateForMyself(true)
       setAttachedFiles([])
+      setSubtasks([])
+      setNewSubtaskTitle("")
     }
   }, [initiative, isOpen, user?.user_id])
 
@@ -180,8 +186,28 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
   useEffect(() => {
     if (!isOpen) {
       setAttachedFiles([])
+      setSubtasks([])
+      setNewSubtaskTitle("")
     }
   }, [isOpen])
+
+  // Helper functions for subtasks
+  const addSubtask = () => {
+    if (newSubtaskTitle.trim()) {
+      setSubtasks([...subtasks, { title: newSubtaskTitle.trim(), description: "" }])
+      setNewSubtaskTitle("")
+    }
+  }
+
+  const removeSubtask = (index) => {
+    setSubtasks(subtasks.filter((_, i) => i !== index))
+  }
+
+  const updateSubtaskDescription = (index, description) => {
+    const updated = [...subtasks]
+    updated[index].description = description
+    setSubtasks(updated)
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -248,7 +274,8 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
       assignee_ids: assigneeIds,
       team_head_id: formData.team_head_id || null,
       goal_id: formData.goal_id === 'none' ? null : formData.goal_id,
-      files: attachedFiles
+      files: attachedFiles,
+      subtasks: subtasks.length > 0 ? subtasks : undefined
     }
 
     console.log('Submitting initiative:', submitData)
@@ -262,8 +289,33 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
     onClose()
   }
 
-  const availableUsers = Array.isArray(assignableUsers) ? assignableUsers : []
-  const activeGoals = Array.isArray(goals) ? goals.filter(g => g.status === 'active') : []
+  // Filter out current user from assignable users list
+  const availableUsers = Array.isArray(assignableUsers)
+    ? assignableUsers.filter(u => u.id !== user?.user_id)
+    : []
+
+  // Filter goals based on user's department and scope
+  const activeGoals = Array.isArray(goals) ? goals.filter(g => {
+    // Only show active goals
+    if (g.status !== 'active' && g.status !== 'ACTIVE') return false
+
+    // Show yearly and quarterly goals to everyone
+    if (g.type === 'yearly' || g.type === 'YEARLY' || g.type === 'quarterly' || g.type === 'QUARTERLY') {
+      return true
+    }
+
+    // For departmental goals, filter by user's department unless user has global scope
+    if (g.type === 'departmental' || g.type === 'DEPARTMENTAL') {
+      // If user has global scope, show all departmental goals
+      if (user?.scope === 'global') {
+        return true
+      }
+      // Otherwise, only show goals from user's department
+      return g.organization_id === user?.organization_id
+    }
+
+    return true
+  }) : []
 
   // Get selected goal
   const selectedGoal = activeGoals.find(g => g.id === formData.goal_id)
@@ -397,8 +449,15 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                     {selectedGoal ? (
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
-                          {selectedGoal.type === 'yearly' ? 'Y' : 'Q'}
+                          {selectedGoal.type === 'yearly' || selectedGoal.type === 'YEARLY' ? 'Yearly' :
+                           selectedGoal.type === 'quarterly' || selectedGoal.type === 'QUARTERLY' ? 'Quarterly' :
+                           'Departmental'}
                         </Badge>
+                        {(selectedGoal.type === 'departmental' || selectedGoal.type === 'DEPARTMENTAL') && selectedGoal.organization_name && (
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedGoal.organization_name}
+                          </Badge>
+                        )}
                         <span className="truncate">{selectedGoal.title}</span>
                       </div>
                     ) : (
@@ -430,7 +489,7 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                       {activeGoals.map((goal) => (
                         <CommandItem
                           key={goal.id}
-                          value={`${goal.title} ${goal.type}`}
+                          value={`${goal.title} ${goal.type} ${goal.organization_name || ''}`}
                           onSelect={() => {
                             setFormData({ ...formData, goal_id: goal.id })
                             setGoalOpen(false)
@@ -442,11 +501,18 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                               formData.goal_id === goal.id ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          <div className="flex items-center gap-2 flex-1">
+                          <div className="flex items-center gap-2 flex-1 flex-wrap">
                             <Badge variant="outline" className="text-xs">
-                              {goal.type === 'yearly' ? 'Y' : 'Q'}
+                              {goal.type === 'yearly' || goal.type === 'YEARLY' ? 'Yearly' :
+                               goal.type === 'quarterly' || goal.type === 'QUARTERLY' ? 'Quarterly' :
+                               'Departmental'}
                             </Badge>
-                            <span>{goal.title}</span>
+                            {(goal.type === 'departmental' || goal.type === 'DEPARTMENTAL') && goal.organization_name && (
+                              <Badge variant="secondary" className="text-xs">
+                                {goal.organization_name}
+                              </Badge>
+                            )}
+                            <span className="flex-1">{goal.title}</span>
                           </div>
                         </CommandItem>
                       ))}
@@ -695,6 +761,73 @@ function InitiativeForm({ initiative, isOpen, onClose, onSubmit }) {
                     })}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {/* Sub-tasks Section (only shown when creating, not editing) */}
+            {!initiative && (
+              <div className="grid gap-3 border rounded-lg p-4 bg-slate-50">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Sub-tasks (Optional)</Label>
+                  <span className="text-xs text-muted-foreground">{subtasks.length} sub-task{subtasks.length !== 1 ? 's' : ''}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Break down this initiative into smaller, trackable sub-tasks. These can be checked off as you progress.
+                </p>
+
+                {/* Add new subtask */}
+                <div className="flex gap-2">
+                  <Input
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                    placeholder="Enter sub-task title..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addSubtask()
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addSubtask}
+                    disabled={!newSubtaskTitle.trim()}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* List of subtasks */}
+                {subtasks.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {subtasks.map((subtask, index) => (
+                      <div key={index} className="flex items-start gap-2 p-2 bg-white rounded border">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{index + 1}.</span>
+                            <span className="text-sm">{subtask.title}</span>
+                          </div>
+                          <Input
+                            value={subtask.description || ""}
+                            onChange={(e) => updateSubtaskDescription(index, e.target.value)}
+                            placeholder="Add description (optional)..."
+                            className="mt-1 text-xs h-8"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSubtask(index)}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

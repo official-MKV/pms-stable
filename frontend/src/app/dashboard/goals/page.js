@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,7 +137,7 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
                 <span>{goal.owner_name}</span>
               </div>
             )}
-            {/* Show assigned to for goals assigned to subordinates */}
+            {/* Show assigned to for goals assigned to supervisees */}
             {isAssignedByOther && goal.owner_name && (
               <div className="flex items-center gap-1.5 mt-1">
                 <Badge variant="outline" className="text-xs">
@@ -152,7 +153,7 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {/* Approve option for supervisors on subordinate goals (created by subordinates) */}
+              {/* Approve option for supervisors on supervisee goals (created by supervisees) */}
               {canApprove && isPendingApproval && isTeamGoal && !isAssignedByOther && (
                 <>
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onApprove(goal); }}>
@@ -163,7 +164,7 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
                 </>
               )}
 
-              {/* Respond option for subordinates on goals assigned by supervisor */}
+              {/* Respond option for supervisees on goals assigned by supervisor */}
               {isPendingApproval && isAssignedByOther && isOwnGoal && (
                 <>
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRespond(goal, true); }}>
@@ -258,8 +259,16 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
         )}
 
         {goal.owner_name && isTeamGoal && (
-          <div className="text-xs text-gray-600 pt-2 border-t">
-            Owner: <span className="font-medium">{goal.owner_name}</span>
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
+                {goal.owner_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-gray-900">{goal.owner_name}</span>
+              <span className="text-xs text-gray-500">Supervisee</span>
+            </div>
           </div>
         )}
       </CardContent>
@@ -288,10 +297,36 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
 
   // Filter organizations based on user's scope
   const scopedOrganizations = useMemo(() => {
-    if (!userOrganization || !organizations || organizations.length === 0) return []
+    if (!organizations || organizations.length === 0) return []
 
     // If user has global scope, show all departments and directorates
     if (userScope === 'global') {
+      const filtered = organizations.filter(org =>
+        org.level === 'DEPARTMENT' ||
+        org.level === 'DIRECTORATE' ||
+        org.level === 'department' ||
+        org.level === 'directorate'
+      )
+      return filtered.length > 0 ? filtered : organizations.filter(org =>
+        org.level !== 'GLOBAL' && org.level !== 'global'
+      )
+    }
+
+    // Otherwise, only show user's own organization if it's a department or directorate
+    if (userOrganization) {
+      const userOrg = organizations.find(org => org.id === userOrganization)
+      if (userOrg && (
+        userOrg.level === 'DEPARTMENT' ||
+        userOrg.level === 'DIRECTORATE' ||
+        userOrg.level === 'department' ||
+        userOrg.level === 'directorate'
+      )) {
+        return [userOrg]
+      }
+    }
+
+    // Fallback: if user has departmental goal creation permission, show all valid organizations
+    if (canCreateDepartmental) {
       return organizations.filter(org =>
         org.level === 'DEPARTMENT' ||
         org.level === 'DIRECTORATE' ||
@@ -300,19 +335,8 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
       )
     }
 
-    // Otherwise, only show user's own organization if it's a department or directorate
-    const userOrg = organizations.find(org => org.id === userOrganization)
-    if (userOrg && (
-      userOrg.level === 'DEPARTMENT' ||
-      userOrg.level === 'DIRECTORATE' ||
-      userOrg.level === 'department' ||
-      userOrg.level === 'directorate'
-    )) {
-      return [userOrg]
-    }
-
     return []
-  }, [organizations, userOrganization, userScope])
+  }, [organizations, userOrganization, userScope, canCreateDepartmental])
 
   // Auto-set organization_id for departmental goals based on user's scope
   const defaultOrgId = useMemo(() => {
@@ -1161,7 +1185,7 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor, super
             </div>
           )}
 
-          {/* Supervisee Info (for supervisors viewing subordinate goals) */}
+          {/* Supervisee Info (for supervisors viewing supervisee goals) */}
           {supervisee && (
             <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h3 className="font-semibold text-sm text-blue-900">Team Member</h3>
@@ -1542,7 +1566,7 @@ export default function GoalsPage() {
     ? goals.find(g => g.id === detailGoal.parent_goal_id)
     : null
 
-  // Get supervisee information when supervisor is viewing subordinate's goal
+  // Get supervisee information when supervisor is viewing supervisee's goal
   const superviseeForDetail = useMemo(() => {
     if (!detailGoal) return null
 
@@ -1599,7 +1623,7 @@ export default function GoalsPage() {
           {isSupervisor && (
             <TabsTrigger value="team" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Subordinate Goals
+              Supervisee Goals
             </TabsTrigger>
           )}
         </TabsList>
@@ -1941,16 +1965,16 @@ export default function GoalsPage() {
           </Card>
         </TabsContent>
 
-        {/* Subordinate Goals Tab (Supervisors only) */}
+        {/* Supervisee Goals Tab (Supervisors only) */}
         {isSupervisor && (
           <TabsContent value="team" className="space-y-6">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Review and approve your subordinates&apos; goals
+                Review and approve your supervisees&apos; goals
               </p>
               <Button onClick={() => setIsFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Create Goal for Subordinate
+                Create Goal for Supervisee
               </Button>
             </div>
 
@@ -2015,9 +2039,9 @@ export default function GoalsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Subordinate Goals ({filteredSuperviseeGoals.length})</CardTitle>
+                <CardTitle>Supervisee Goals ({filteredSuperviseeGoals.length})</CardTitle>
                 <CardDescription>
-                  {supervisees.length} subordinates
+                  {supervisees.length} supervisees
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -2043,15 +2067,15 @@ export default function GoalsPage() {
                 ) : (
                   <div className="text-center py-12">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No subordinate goals found</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No supervisee goals found</h3>
                     <p className="text-gray-600 mb-4">
                       {(searchTerm || yearFilter !== "all" || superviseeFilter !== "all")
                         ? "Try adjusting your filters"
-                        : "Create goals for your subordinates or wait for them to create their own"}
+                        : "Create goals for your supervisees or wait for them to create their own"}
                     </p>
                     <Button onClick={() => setIsFormOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Create Goal for Subordinate
+                      Create Goal for Supervisee
                     </Button>
                   </div>
                 )}

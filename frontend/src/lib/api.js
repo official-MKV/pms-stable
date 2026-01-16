@@ -5,7 +5,9 @@ import Cookies from 'js-cookie'
  */
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const TOKEN_COOKIE_NAME = 'auth_token'
-const TOKEN_EXPIRY_DAYS = 1
+const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token'
+const TOKEN_EXPIRY_DAYS = 1  // Access token cookie expiry (1 day)
+const REFRESH_TOKEN_EXPIRY_DAYS = 7  // Refresh token cookie expiry (7 days)
 
 /**
  * Custom API Error class for handling API-specific errors
@@ -49,6 +51,39 @@ function removeAuthToken() {
 }
 
 /**
+ * Get refresh token from cookies
+ * @returns {string|null} Refresh token or null if not found
+ */
+function getRefreshToken() {
+  return Cookies.get(REFRESH_TOKEN_COOKIE_NAME) || null
+}
+
+/**
+ * Set refresh token in cookies
+ * @param {string} token - Refresh token to store
+ */
+function setRefreshToken(token) {
+  Cookies.set(REFRESH_TOKEN_COOKIE_NAME, token, {
+    expires: REFRESH_TOKEN_EXPIRY_DAYS,
+    secure: false,  // Change to true for HTTPS
+    sameSite: 'lax'
+  })
+}
+
+/**
+ * Remove refresh token from cookies
+ */
+function removeRefreshToken() {
+  Cookies.remove(REFRESH_TOKEN_COOKIE_NAME)
+}
+
+/**
+ * Flag to prevent multiple simultaneous refresh attempts
+ */
+let isRefreshing = false
+let refreshPromise = null
+
+/**
  * Create headers for API requests
  * @param {boolean} includeAuth - Whether to include authentication header
  * @returns {Object} Headers object
@@ -69,12 +104,72 @@ function createHeaders(includeAuth = true) {
 }
 
 /**
+ * Try to refresh the access token using the refresh token
+ * @returns {Promise<boolean>} True if refresh was successful
+ */
+async function tryRefreshToken() {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) {
+    return false
+  }
+
+  // Prevent multiple simultaneous refresh attempts
+  if (isRefreshing) {
+    return refreshPromise
+  }
+
+  isRefreshing = true
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.access_token) {
+          setAuthToken(data.access_token)
+        }
+        if (data.refresh_token) {
+          setRefreshToken(data.refresh_token)
+        }
+        // Update session data with new permissions if provided
+        if (data.permissions) {
+          const sessionData = tokenUtils.getSessionData()
+          if (sessionData) {
+            sessionData.permissions = data.permissions
+            sessionData.scope = data.scope
+            tokenUtils.setSessionData(sessionData)
+          }
+        }
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      return false
+    } finally {
+      isRefreshing = false
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
+/**
  * Handle API response and errors
  * @param {Response} response - Fetch response object
+ * @param {Object} options - Original request options for retry
+ * @param {string} endpoint - Original endpoint for retry
  * @returns {Promise<Object>} Parsed response data
  * @throws {ApiError} Throws ApiError for non-successful responses
  */
-async function handleResponse(response) {
+async function handleResponse(response, options = {}, endpoint = '') {
   const contentType = response.headers.get('content-type')
   const isJson = contentType && contentType.includes('application/json')
 
@@ -86,16 +181,34 @@ async function handleResponse(response) {
   }
 
   if (!response.ok) {
-    // Handle 401 Unauthorized - token expired or invalid
-    if (response.status === 401) {
-      // Import toast dynamically to avoid circular dependency
+    // Handle 401 Unauthorized - try refresh token first
+    if (response.status === 401 && !options._retried) {
+      // Don't try to refresh if this was already a refresh request
+      if (!endpoint.includes('/auth/refresh')) {
+        const refreshSuccess = await tryRefreshToken()
+        if (refreshSuccess) {
+          // Retry the original request with new token
+          const retryOptions = {
+            ...options,
+            _retried: true,
+            headers: createHeaders(options.includeAuth !== false)
+          }
+          const retryUrl = `${API_BASE_URL}${endpoint}`
+          const retryResponse = await fetch(retryUrl, retryOptions)
+          return handleResponse(retryResponse, { ...retryOptions, _retried: true }, endpoint)
+        }
+      }
+
+      // If refresh failed or wasn't possible, redirect to login
       import('sonner').then(({ toast }) => {
         toast.error('Your session has expired. Please log in again.')
       })
 
       // Clear auth data
       removeAuthToken()
+      removeRefreshToken()
       localStorage.removeItem('user_data')
+      localStorage.removeItem('user_session')
 
       // Redirect to login
       if (typeof window !== 'undefined') {
@@ -126,7 +239,7 @@ async function apiRequest(endpoint, options = {}) {
 
   try {
     const response = await fetch(url, config)
-    return await handleResponse(response)
+    return await handleResponse(response, config, endpoint)
   } catch (error) {
     if (error instanceof ApiError) {
       // Re-throw API errors as-is
@@ -218,6 +331,12 @@ export const auth = {
       console.log('Setting auth token after login')
       setAuthToken(response.access_token)
 
+      // Store refresh token if provided
+      if (response.refresh_token) {
+        setRefreshToken(response.refresh_token)
+        console.log('Refresh token stored successfully')
+      }
+
       // Verify token was set
       const storedToken = getAuthToken()
       console.log('Token stored successfully:', !!storedToken)
@@ -235,13 +354,19 @@ export const auth = {
 
   /**
    * User logout
+   * @param {boolean} logoutAllDevices - If true, logs out from all devices
    * @returns {Promise<Object>} Logout response
    */
-  async logout() {
+  async logout(logoutAllDevices = false) {
     try {
-      await POST('/api/auth/logout')
+      const refreshToken = getRefreshToken()
+      await POST('/api/auth/logout', {
+        refresh_token: refreshToken,
+        logout_all_devices: logoutAllDevices
+      })
     } finally {
       removeAuthToken()
+      removeRefreshToken()
       tokenUtils.clearSessionData()
     }
   },
@@ -268,13 +393,20 @@ export const auth = {
   },
 
   /**
-   * Refresh access token
-   * @returns {Promise<Object>} New token response
+   * Refresh access token using refresh token
+   * @returns {Promise<Object>} New token response with both tokens
    */
   async refresh() {
-    const response = await POST('/api/auth/refresh')
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      throw new ApiError('No refresh token available', 401)
+    }
+    const response = await POST('/api/auth/refresh', { refresh_token: refreshToken })
     if (response.access_token) {
       setAuthToken(response.access_token)
+    }
+    if (response.refresh_token) {
+      setRefreshToken(response.refresh_token)
     }
     return response
   },
@@ -1107,13 +1239,34 @@ export const tokenUtils = {
   getToken: getAuthToken,
   setToken: setAuthToken,
   removeToken: removeAuthToken,
+  getRefreshToken: getRefreshToken,
+  setRefreshToken: setRefreshToken,
+  removeRefreshToken: removeRefreshToken,
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated (has valid access token or refresh token)
    * @returns {boolean} Authentication status
    */
   isAuthenticated() {
-    return !!getAuthToken()
+    return !!getAuthToken() || !!getRefreshToken()
+  },
+
+  /**
+   * Check if user has a valid (non-expired) access token
+   * @returns {boolean} Whether the access token is still valid
+   */
+  hasValidAccessToken() {
+    const token = getAuthToken()
+    if (!token) return false
+    return !this.isTokenExpired(token)
+  },
+
+  /**
+   * Check if user has a refresh token (can potentially restore session)
+   * @returns {boolean} Whether a refresh token exists
+   */
+  hasRefreshToken() {
+    return !!getRefreshToken()
   },
 
   /**

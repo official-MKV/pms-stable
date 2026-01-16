@@ -37,15 +37,23 @@ class InitiativeBase(BaseModel):
     due_date: datetime
     goal_id: Optional[uuid.UUID] = None
 
+class InitiativeSubTaskInput(BaseModel):
+    """Sub-task input schema for initiative creation"""
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
 class InitiativeCreate(InitiativeBase):
     """
     Create initiative schema
     Staff can create for themselves or assign to supervisees
     Supervisors can assign to anyone in their scope
+    Can optionally include sub-tasks to be created with the initiative
     """
     assignee_ids: List[uuid.UUID] = Field(..., min_items=1)
     team_head_id: Optional[uuid.UUID] = None
     document_ids: Optional[List[uuid.UUID]] = Field(default_factory=list)
+    subtasks: Optional[List[InitiativeSubTaskInput]] = Field(default_factory=list)
 
     @validator('due_date')
     def validate_due_date(cls, v):
