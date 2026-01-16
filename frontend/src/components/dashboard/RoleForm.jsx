@@ -294,13 +294,9 @@ export function RoleForm({ role, isOpen, onClose, onSubmit }) {
                             {categoryPermissions.map((permission) => (
                               <div
                                 key={permission}
-                                className={`flex items-center space-x-3 p-3 bg-white rounded border hover:border-slate-300 transition-colors cursor-pointer ${
+                                className={`flex items-center space-x-3 p-3 bg-white rounded border hover:border-slate-300 transition-colors ${
                                   formData.permissions.includes(permission) ? "border-primary bg-primary/5" : ""
                                 }`}
-                                onClick={() =>
-                                  !submitting &&
-                                  handlePermissionChange(permission, !formData.permissions.includes(permission))
-                                }
                               >
                                 <Checkbox
                                   id={permission}

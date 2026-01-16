@@ -59,6 +59,7 @@ class SystemPermissions:
     REVIEW_CREATE_CYCLE = "review_create_cycle"
     REVIEW_EDIT_CYCLE = "review_edit_cycle"
     REVIEW_MANAGE_CYCLE = "review_manage_cycle"
+    REVIEW_TRAIT_MANAGE = "review_trait_manage"
     REVIEW_VIEW_ALL = "review_view_all"
     REVIEW_CONDUCT = "review_conduct"
     PERFORMANCE_VIEW_ALL = "performance_view_all"
@@ -146,6 +147,7 @@ class PermissionGroups:
                     SystemPermissions.REVIEW_CREATE_CYCLE,
                     SystemPermissions.REVIEW_EDIT_CYCLE,
                     SystemPermissions.REVIEW_MANAGE_CYCLE,
+                    SystemPermissions.REVIEW_TRAIT_MANAGE,
                     SystemPermissions.REVIEW_VIEW_ALL,
                     SystemPermissions.REVIEW_CONDUCT,
                 ]
@@ -169,19 +171,6 @@ class PermissionGroups:
                     SystemPermissions.BACKUP_ACCESS,
                 ]
             }
-        ,"initiative_management": {
-    "name": "Initiative Management",
-    "description": "Create and manage initiatives and their execution workflows",
-    "permissions": [
-        SystemPermissions.INITIATIVE_CREATE,
-        SystemPermissions.INITIATIVE_ASSIGN,
-        SystemPermissions.INITIATIVE_EDIT,
-        SystemPermissions.INITIATIVE_REVIEW,
-        SystemPermissions.INITIATIVE_VIEW_ALL,
-        SystemPermissions.INITIATIVE_EXTEND_DEADLINE,
-        SystemPermissions.INITIATIVE_DELETE,
-    ]
-},
         }
 
 class UserPermissions:

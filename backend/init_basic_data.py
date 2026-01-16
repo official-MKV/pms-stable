@@ -77,6 +77,7 @@ def init_basic_data():
                     "review_create_cycle",
                     "review_edit_cycle",
                     "review_manage_cycle",
+                    "review_trait_manage",
                     "review_view_all",
                     "review_conduct",
                     "performance_view_all",
