@@ -108,7 +108,65 @@ const formatStatus = (status) => {
   ).join(' ')
 }
 
-function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, onApprove, onRespond, onRequestChange, canEdit = false, canApprove = false, isTeamGoal = false, onViewDetails, currentUserId }) {
+import React from "react"
+import { Calendar, Clock, Edit, Trash2, CheckCircle, XCircle, User, MoreHorizontal } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Building2, Target } from "lucide-react"
+
+const statusColors = {
+  PENDING_APPROVAL: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  ACTIVE: "bg-blue-100 text-blue-800 border-blue-200",
+  ACHIEVED: "bg-green-100 text-green-800 border-green-200",
+  DISCARDED: "bg-gray-100 text-gray-800 border-gray-200",
+  REJECTED: "bg-red-100 text-red-800 border-red-200",
+}
+
+const typeIcons = {
+  YEARLY: Building2,
+  QUARTERLY: Calendar,
+  DEPARTMENTAL: Building2,
+  INDIVIDUAL: User,
+}
+
+const formatStatus = (status) => {
+  if (!status) return ''
+  return status.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ')
+}
+
+function GoalCard({ 
+  goal, 
+  onEdit, 
+  onDelete, 
+  onUpdateProgress, 
+  onStatusChange, 
+  onApprove, 
+  onRespond, 
+  onRequestChange, 
+  canEdit = false, 
+  canApprove = false, 
+  isTeamGoal = false, 
+  onViewDetails, 
+  currentUserId 
+}) {
   const TypeIcon = typeIcons[goal.type]
   const isPendingApproval = goal.status === "PENDING_APPROVAL"
   const isActive = goal.status === "ACTIVE"
@@ -116,66 +174,42 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
   const isOwnGoal = goal.owner_id === currentUserId
 
   return (
-    <Card className="group hover:shadow-md transition-all duration-200 cursor-pointer" onClick={() => onViewDetails && onViewDetails(goal)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1 min-w-0">
+    <Card 
+      className="relative hover:shadow-lg transition-shadow cursor-pointer group flex flex-col"
+      onClick={() => onViewDetails && onViewDetails(goal)}
+    >
+      <CardHeader className="space-y-3 pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="w-full min-w-0">
-                    <CardTitle className="text-lg font-semibold truncate">{goal.title}</CardTitle>
-                  </div>
+                  <CardTitle className="text-lg leading-tight flex items-center gap-2">
+                    <TypeIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <span className="truncate">{goal.title}</span>
+                  </CardTitle>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md">
+                <TooltipContent side="top" className="max-w-sm">
                   <p>{goal.title}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={`${statusColors[goal.status]} flex items-center gap-1.5`}>
-                {formatStatus(goal.status)}
-              </Badge>
-              {goal.frozen && (
-                <Badge className="bg-gray-200 text-gray-800">Frozen</Badge>
-              )}
-              {isAssignedByOther && (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Send className="h-3 w-3" />
-                  Assigned by Supervisor
-                </Badge>
-              )}
-              {goal.quarter && goal.year && (
-                <Badge variant="outline">{goal.quarter} {goal.year}</Badge>
-              )}
-            </div>
-            {/* Show owner name for team goals */}
-            {/* {isTeamGoal && goal.owner_name && (
-              <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                <User className="h-3.5 w-3.5" />
-                <span>{goal.owner_name}</span>
-              </div>
-            )} */}
-            {/* Show assigned to for goals assigned to supervisees */}
-            {/* {isAssignedByOther && goal.owner_name && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <Badge variant="outline" className="text-xs">
-                  Assigned to: {goal.owner_name}
-                </Badge>
-              </div>
-            )} */}
           </div>
+          
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
               {/* Approve option for supervisors on supervisee goals (created by supervisees) */}
               {canApprove && isPendingApproval && isTeamGoal && !isAssignedByOther && (
                 <>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onApprove(goal); }}>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onApprove(goal);
+                  }}>
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Approve Goal
                   </DropdownMenuItem>
@@ -186,12 +220,18 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
               {/* Respond option for supervisees on goals assigned by supervisor */}
               {isPendingApproval && isAssignedByOther && isOwnGoal && (
                 <>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRespond(goal, true); }}>
-                    <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onRespond(goal, true);
+                  }}>
+                    <CheckCircle className="mr-2 h-4 w-4" />
                     Accept Goal
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRespond(goal, false); }}>
-                    <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onRespond(goal, false);
+                  }}>
+                    <XCircle className="mr-2 h-4 w-4" />
                     Decline Goal
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -201,48 +241,72 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
               {/* Edit and delete options for team goals (supervisor can edit assigned goals) */}
               {isTeamGoal && !goal.frozen && (
                 <>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(goal); }}>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(goal);
+                  }}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Goal
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(goal); }} className="text-red-600">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(goal);
+                  }} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete Goal
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
                 </>
               )}
 
               {/* Edit and progress options for own goals */}
               {canEdit && !goal.frozen && !isTeamGoal && (
                 <>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(goal); }}>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(goal);
+                  }}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Goal
                   </DropdownMenuItem>
+
                   {isActive && (
                     <>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateProgress(goal); }}>
-                        <FileText className="mr-2 h-4 w-4" />
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateProgress(goal);
+                      }}>
+                        <Target className="mr-2 h-4 w-4" />
                         Update Progress
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRequestChange(goal); }}>
-                        <MessageSquare className="mr-2 h-4 w-4" />
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestChange(goal);
+                      }}>
                         Request Change
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStatusChange(goal, "ACHIEVED"); }}>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        onStatusChange(goal, "ACHIEVED");
+                      }}>
+                        <CheckCircle className="mr-2 h-4 w-4" />
                         Mark as Achieved
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStatusChange(goal, "DISCARDED"); }}>
-                        <AlertCircle className="mr-2 h-4 w-4" />
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        onStatusChange(goal, "DISCARDED");
+                      }}>
                         Discard Goal
                       </DropdownMenuItem>
                     </>
                   )}
+
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(goal); }} className="text-red-600">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(goal);
+                  }} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete Goal
                   </DropdownMenuItem>
@@ -251,74 +315,90 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {goal.description && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none cursor-help"
-                  dangerouslySetInnerHTML={{ __html: goal.description }}
-                />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-md max-h-60 overflow-y-auto">
-                <div
-                  className="prose prose-sm"
-                  dangerouslySetInnerHTML={{ __html: goal.description }}
-                />
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
 
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge className={`${statusColors[goal.status]} text-xs`}>
+            {formatStatus(goal.status)}
+          </Badge>
+          {goal.frozen && (
+            <Badge className="bg-gray-200 text-gray-800 text-xs">Frozen</Badge>
+          )}
+          {isAssignedByOther && (
+            <Badge className="bg-purple-100 text-purple-800 text-xs">
+              Assigned by Supervisor
+            </Badge>
+          )}
+          {goal.quarter && goal.year && (
+            <Badge variant="outline" className="text-xs">{goal.quarter} {goal.year}</Badge>
+          )}
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-3 flex-1 flex flex-col pt-0">
+        {goal.description && (
+          <div className="text-sm text-gray-600 line-clamp-2" 
+               dangerouslySetInnerHTML={{ __html: goal.description }} />
+        )}
+        
         {goal.tags && goal.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {goal.tags.map((tag) => (
+            {goal.tags.slice(0, 3).map((tag) => (
               <Badge
                 key={tag.id}
                 variant="outline"
-                className="text-xs"
-                style={{ borderColor: tag.color, color: tag.color }}
+                className="text-xs px-2 py-0"
+                style={{
+                  borderColor: tag.color,
+                  color: tag.color,
+                  backgroundColor: `${tag.color}15`
+                }}
               >
-                {tag.name}
+                <span className="truncate max-w-[80px]">{tag.name}</span>
               </Badge>
             ))}
+            {goal.tags.length > 3 && (
+              <Badge variant="outline" className="text-xs px-2 py-0">
+                +{goal.tags.length - 3}
+              </Badge>
+            )}
           </div>
         )}
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Progress</span>
-            <span className="font-semibold">{goal.progress_percentage || 0}%</span>
+        
+        <div className="space-y-2 mt-auto">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-600 font-medium">Progress</span>
+            <span className="font-semibold text-gray-900">{goal.progress_percentage || 0}%</span>
           </div>
-          <Progress value={goal.progress_percentage || 0} className="h-2" />
+          <Progress value={goal.progress_percentage || 0} className="h-1.5" />
         </div>
-
+        
         {(goal.start_date || goal.end_date) && (
-          <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
+          <div className="flex items-center gap-3 text-xs text-gray-500 pt-2 border-t">
             {goal.start_date && (
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {new Date(goal.start_date).toLocaleDateString()}
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <Clock className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{new Date(goal.start_date).toLocaleDateString()}</span>
               </div>
             )}
             {goal.end_date && (
-              <div>Due: {new Date(goal.end_date).toLocaleDateString()}</div>
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <Calendar className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">Due: {new Date(goal.end_date).toLocaleDateString()}</span>
+              </div>
             )}
           </div>
         )}
-
+        
         {goal.owner_name && isTeamGoal && (
           <div className="flex items-center gap-2 pt-2 border-t">
-            <Avatar className="h-6 w-6">
+            <Avatar className="h-7 w-7">
               <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
                 {goal.owner_name.split(' ').map(n => n[0]).join('').toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-gray-900">{goal.owner_name}</span>
-              <span className="text-xs text-gray-500">Supervisee</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-900 truncate">{goal.owner_name}</p>
+              <p className="text-xs text-gray-500">Supervisee</p>
             </div>
           </div>
         )}
