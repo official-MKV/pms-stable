@@ -255,7 +255,7 @@ class Goal(Base):
     __tablename__ = "goals"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    title = Column(String(255), nullable=False)
+    title = Column(String(1000), nullable=False)
     description = Column(Text)  # Now supports rich text (HTML)
     kpis = Column(Text, nullable=True)  # Key Performance Indicators
     type = Column(Enum(GoalType), nullable=False)

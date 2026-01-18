@@ -54,6 +54,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useAuth, usePermission } from "@/lib/auth-context"
 import {
   useGoals,
@@ -113,8 +119,17 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
     <Card className="group hover:shadow-md transition-all duration-200 cursor-pointer" onClick={() => onViewDetails && onViewDetails(goal)}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
-            <CardTitle className="text-lg font-semibold">{goal.title}</CardTitle>
+          <div className="space-y-2 flex-1 min-w-0">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CardTitle className="text-lg font-semibold truncate">{goal.title}</CardTitle>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-md">
+                  <p>{goal.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge className={`${statusColors[goal.status]} flex items-center gap-1.5`}>
                 {formatStatus(goal.status)}
@@ -237,10 +252,22 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
       </CardHeader>
       <CardContent className="space-y-4">
         {goal.description && (
-          <div
-            className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: goal.description }}
-          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none cursor-help"
+                  dangerouslySetInnerHTML={{ __html: goal.description }}
+                />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-md max-h-60 overflow-y-auto">
+                <div
+                  className="prose prose-sm"
+                  dangerouslySetInnerHTML={{ __html: goal.description }}
+                />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         {goal.tags && goal.tags.length > 0 && (

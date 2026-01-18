@@ -49,6 +49,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useAuth, usePermission } from "@/lib/auth-context"
 import {
   useGoals,
@@ -95,11 +101,20 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-lg font-semibold">{goal.title}</CardTitle>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <CardTitle className="text-lg font-semibold truncate">{goal.title}</CardTitle>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-md">
+                    <p>{goal.title}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               {goal.frozen && (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 shrink-0">
                   <Lock className="h-3 w-3 mr-1" />
                   Frozen
                 </Badge>
@@ -171,10 +186,22 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
       </CardHeader>
       <CardContent className="space-y-4">
         {goal.description && (
-          <div
-            className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: goal.description }}
-          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none cursor-help"
+                  dangerouslySetInnerHTML={{ __html: goal.description }}
+                />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-md max-h-60 overflow-y-auto">
+                <div
+                  className="prose prose-sm"
+                  dangerouslySetInnerHTML={{ __html: goal.description }}
+                />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         {goal.tags && goal.tags.length > 0 && (
@@ -193,9 +220,22 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
         )}
 
         {goal.kpis && (
-          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-            <span className="font-semibold">KPIs:</span> {goal.kpis}
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded cursor-help">
+                  <span className="font-semibold">KPIs:</span>{" "}
+                  <span className="line-clamp-1">{goal.kpis}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-md">
+                <div className="text-sm">
+                  <p className="font-semibold mb-1">KPIs:</p>
+                  <p>{goal.kpis}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         <div className="space-y-2">
@@ -219,12 +259,18 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
 }
 
 function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1
+  const currentQuarter = `Q${Math.ceil(currentMonth / 3)}`
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     type: "QUARTERLY",
     kpis: "",
     difficulty_level: 3,
+    quarter: currentQuarter,
+    year: currentYear,
     start_date: "",
     end_date: "",
     parent_goal_id: "",
@@ -243,6 +289,8 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         type: goal.type || "QUARTERLY",
         kpis: goal.kpis || "",
         difficulty_level: goal.difficulty_level || 3,
+        quarter: goal.quarter || currentQuarter,
+        year: goal.year || currentYear,
         start_date: goal.start_date || "",
         end_date: goal.end_date || "",
         parent_goal_id: goal.parent_goal_id || "",
@@ -256,13 +304,15 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         type: "QUARTERLY",
         kpis: "",
         difficulty_level: 3,
+        quarter: currentQuarter,
+        year: currentYear,
         start_date: "",
         end_date: "",
         parent_goal_id: "",
         tag_ids: [],
       })
     }
-  }, [goal])
+  }, [goal, currentQuarter, currentYear])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -346,6 +396,50 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
                 </Select>
               </div>
             </div>
+
+            {formData.type === "QUARTERLY" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="quarter">Quarter <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={formData.quarter}
+                    onValueChange={(value) => setFormData({ ...formData, quarter: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Q1">Q1 (Jan - Mar)</SelectItem>
+                      <SelectItem value="Q2">Q2 (Apr - Jun)</SelectItem>
+                      <SelectItem value="Q3">Q3 (Jul - Sep)</SelectItem>
+                      <SelectItem value="Q4">Q4 (Oct - Dec)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="year">Year <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={formData.year.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[...Array(5)].map((_, i) => {
+                        const year = currentYear - 1 + i
+                        return (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

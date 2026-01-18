@@ -24,7 +24,7 @@ class Quarter(str, Enum):
     Q4 = "Q4"
 
 class GoalBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255)
+    title: str = Field(..., min_length=1, max_length=1000)
     description: Optional[str] = None  # Supports rich text (HTML)
     kpis: Optional[str] = None  # Key Performance Indicators
     type: GoalType
@@ -66,7 +66,7 @@ class GoalCreate(GoalBase):
     tag_ids: Optional[List[uuid.UUID]] = []  # Goal tags/labels
 
 class GoalUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    title: Optional[str] = Field(None, min_length=1, max_length=1000)
     description: Optional[str] = None
     kpis: Optional[str] = None
     start_date: Optional[date] = None
