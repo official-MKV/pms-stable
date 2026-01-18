@@ -321,6 +321,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="YEARLY">Yearly Goal</SelectItem>
                     <SelectItem value="QUARTERLY">Quarterly Goal</SelectItem>
                   </SelectContent>
                 </Select>

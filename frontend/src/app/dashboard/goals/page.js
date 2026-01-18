@@ -53,6 +53,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { useAuth, usePermission } from "@/lib/auth-context"
 import {
   useGoals,
@@ -371,15 +372,19 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
     title: "",
     description: "",
     type: availableTypes[0]?.value || (isDepartmentalOnly ? "DEPARTMENTAL" : "YEARLY"),
+    kpis: "",
+    difficulty_level: 3,
     start_date: "",
     end_date: "",
     quarter: `Q${currentQuarter}`,
     year: currentYear,
     organization_id: defaultOrgId,
     parent_goal_id: "",
+    tag_ids: [],
   })
 
   const { data: goals = [] } = useGoals()
+  const { data: tags = [] } = useGoalTags()
 
   // Update form data when goal changes
   useEffect(() => {
@@ -388,24 +393,30 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
         title: goal.title || "",
         description: goal.description || "",
         type: goal.type || availableTypes[0]?.value || (isDepartmentalOnly ? "DEPARTMENTAL" : "YEARLY"),
+        kpis: goal.kpis || "",
+        difficulty_level: goal.difficulty_level || 3,
         start_date: goal.start_date || "",
         end_date: goal.end_date || "",
         quarter: goal.quarter || `Q${currentQuarter}`,
         year: goal.year || currentYear,
         organization_id: goal.organization_id || defaultOrgId,
         parent_goal_id: goal.parent_goal_id || "",
+        tag_ids: goal.tags?.map(t => t.id) || [],
       })
     } else {
       setFormData({
         title: "",
         description: "",
         type: availableTypes[0]?.value || (isDepartmentalOnly ? "DEPARTMENTAL" : "YEARLY"),
+        kpis: "",
+        difficulty_level: 3,
         start_date: "",
         end_date: "",
         quarter: `Q${currentQuarter}`,
         year: currentYear,
         organization_id: defaultOrgId,
         parent_goal_id: "",
+        tag_ids: [],
       })
     }
   }, [goal, currentQuarter, currentYear, availableTypes, isDepartmentalOnly, defaultOrgId])
@@ -518,13 +529,97 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
 
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe what you want to achieve"
-                rows={4}
+              <RichTextEditor
+                content={formData.description}
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                placeholder="Describe what this goal aims to achieve..."
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="difficulty">Difficulty Level</Label>
+              <Select
+                value={formData.difficulty_level.toString()}
+                onValueChange={(value) => setFormData({ ...formData, difficulty_level: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 - Very Easy</SelectItem>
+                  <SelectItem value="2">2 - Easy</SelectItem>
+                  <SelectItem value="3">3 - Medium</SelectItem>
+                  <SelectItem value="4">4 - Hard</SelectItem>
+                  <SelectItem value="5">5 - Very Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="kpis">KPIs (Key Performance Indicators)</Label>
+              <Textarea
+                id="kpis"
+                value={formData.kpis}
+                onChange={(e) => setFormData({ ...formData, kpis: e.target.value })}
+                placeholder="Define the key performance indicators for this goal..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tags">Tags (Optional)</Label>
+              <Select
+                value={formData.tag_ids.length > 0 ? "multi" : "none"}
+                onValueChange={() => {}}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {formData.tag_ids.length > 0
+                      ? `${formData.tag_ids.length} tag(s) selected`
+                      : "Select tags..."}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2 space-y-2">
+                    {tags.map((tag) => (
+                      <div key={tag.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`tag-${tag.id}`}
+                          checked={formData.tag_ids.includes(tag.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                tag_ids: [...formData.tag_ids, tag.id]
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                tag_ids: formData.tag_ids.filter(id => id !== tag.id)
+                              })
+                            }
+                          }}
+                          className="h-4 w-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor={`tag-${tag.id}`}
+                          className="flex items-center gap-2 cursor-pointer flex-1"
+                        >
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="text-sm">{tag.name}</span>
+                        </label>
+                      </div>
+                    ))}
+                    {tags.length === 0 && (
+                      <p className="text-sm text-gray-500">No tags available. Create tags in the Goals Management page.</p>
+                    )}
+                  </div>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className={`grid gap-4 ${formData.type === "YEARLY" ? "grid-cols-1" : "grid-cols-2"}`}>
@@ -625,16 +720,20 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
     title: "",
     description: "",
     type: "INDIVIDUAL",
+    kpis: "",
+    difficulty_level: 3,
     start_date: "",
     end_date: "",
     quarter: `Q${currentQuarter}`,
     year: currentYear,
     supervisee_id: "",
+    tag_ids: [],
   })
 
   const [createForSupervisee, setCreateForSupervisee] = useState(false)
 
   const { data: goals = [] } = useGoals()
+  const { data: tags = [] } = useGoalTags()
 
   // Update form data when goal changes
   useEffect(() => {
@@ -643,11 +742,14 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
         title: goal.title || "",
         description: goal.description || "",
         type: "INDIVIDUAL",
+        kpis: goal.kpis || "",
+        difficulty_level: goal.difficulty_level || 3,
         start_date: goal.start_date || "",
         end_date: goal.end_date || "",
         quarter: goal.quarter || `Q${currentQuarter}`,
         year: goal.year || currentYear,
         supervisee_id: goal.owner_id || "",
+        tag_ids: goal.tags?.map(t => t.id) || [],
       })
       setCreateForSupervisee(!!goal.owner_id && goal.owner_id !== goal.created_by)
     } else {
@@ -655,11 +757,14 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
         title: "",
         description: "",
         type: "INDIVIDUAL",
+        kpis: "",
+        difficulty_level: 3,
         start_date: "",
         end_date: "",
         quarter: `Q${currentQuarter}`,
         year: currentYear,
         supervisee_id: "",
+        tag_ids: [],
       })
       setCreateForSupervisee(false)
     }
@@ -752,13 +857,97 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
 
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe what you want to achieve"
-                rows={4}
+              <RichTextEditor
+                content={formData.description}
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                placeholder="Describe what this goal aims to achieve..."
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="difficulty">Difficulty Level</Label>
+              <Select
+                value={formData.difficulty_level.toString()}
+                onValueChange={(value) => setFormData({ ...formData, difficulty_level: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 - Very Easy</SelectItem>
+                  <SelectItem value="2">2 - Easy</SelectItem>
+                  <SelectItem value="3">3 - Medium</SelectItem>
+                  <SelectItem value="4">4 - Hard</SelectItem>
+                  <SelectItem value="5">5 - Very Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="kpis">KPIs (Key Performance Indicators)</Label>
+              <Textarea
+                id="kpis"
+                value={formData.kpis}
+                onChange={(e) => setFormData({ ...formData, kpis: e.target.value })}
+                placeholder="Define the key performance indicators for this goal..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tags">Tags (Optional)</Label>
+              <Select
+                value={formData.tag_ids.length > 0 ? "multi" : "none"}
+                onValueChange={() => {}}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {formData.tag_ids.length > 0
+                      ? `${formData.tag_ids.length} tag(s) selected`
+                      : "Select tags..."}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2 space-y-2">
+                    {tags.map((tag) => (
+                      <div key={tag.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`ind-tag-${tag.id}`}
+                          checked={formData.tag_ids.includes(tag.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                tag_ids: [...formData.tag_ids, tag.id]
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                tag_ids: formData.tag_ids.filter(id => id !== tag.id)
+                              })
+                            }
+                          }}
+                          className="h-4 w-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor={`ind-tag-${tag.id}`}
+                          className="flex items-center gap-2 cursor-pointer flex-1"
+                        >
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="text-sm">{tag.name}</span>
+                        </label>
+                      </div>
+                    ))}
+                    {tags.length === 0 && (
+                      <p className="text-sm text-gray-500">No tags available. Create tags in the Goals Management page.</p>
+                    )}
+                  </div>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

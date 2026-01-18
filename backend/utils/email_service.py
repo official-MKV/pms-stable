@@ -51,76 +51,97 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #3b82f6;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
+                    border-radius: 6px;
+                    margin: 16px 0;
+                    word-break: break-all;
+                    font-size: 13px;
+                    color: #787774;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
-                    border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
-                    word-break: break-all;
+                .footer p {{
+                    margin: 8px 0;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>Welcome to Nigcomsat PMS</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>Your account has been created in the Nigcomsat Performance Management System. To complete your registration and set up your password, please click the button below:</p>
-                <center>
-                    <a href="{onboarding_link}" class="button">Set Up Your Password</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{onboarding_link}</div>
-                <p><strong>Important:</strong> This link is valid for one-time use only. Once you set your password, you'll be able to log in to your account.</p>
-                <p>If you didn't expect this email, please contact your system administrator.</p>
-            </div>
-            <div class="footer">
-                <p>This is an automated message from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Welcome to Nigcomsat PMS</h1>
+                </div>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>Your account has been created in the Nigcomsat Performance Management System. To complete your registration and set up your password, please click the button below:</p>
+                    <center>
+                        <a href="{onboarding_link}" class="button">Set Up Your Password</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{onboarding_link}</div>
+                    <p><strong>Important:</strong> This link is valid for one-time use only. Once you set your password, you'll be able to log in to your account.</p>
+                    <p>If you didn't expect this email, please contact your system administrator.</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -143,89 +164,115 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #ef4444;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
+                    border-radius: 6px;
+                    margin: 16px 0;
+                    word-break: break-all;
+                    font-size: 13px;
+                    color: #787774;
+                }}
+                .notice-box {{
+                    background: #f7f6f3;
+                    border-left: 3px solid #37352f;
+                    padding: 16px;
+                    margin: 16px 0;
+                    border-radius: 4px;
+                }}
+                .notice-box ul {{
+                    margin: 8px 0;
+                    padding-left: 20px;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
-                    border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
-                    word-break: break-all;
-                }}
-                .warning {{
-                    background: #fef3c7;
-                    border-left: 4px solid #f59e0b;
-                    padding: 15px;
-                    margin: 15px 0;
+                .footer p {{
+                    margin: 8px 0;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>Password Reset Request</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>We received a request to reset your password for your Nigcomsat PMS account. Click the button below to reset your password:</p>
-                <center>
-                    <a href="{reset_link}" class="button">Reset Your Password</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{reset_link}</div>
-                <div class="warning">
-                    <strong>Security Notice:</strong>
-                    <ul style="margin: 10px 0;">
-                        <li>This link is valid for one-time use only</li>
-                        <li>If you didn't request this reset, please ignore this email</li>
-                        <li>Your password will remain unchanged unless you use this link</li>
-                    </ul>
+            <div class="container">
+                <div class="header">
+                    <h1>Password Reset Request</h1>
                 </div>
-                <p>If you have any concerns, please contact your system administrator immediately.</p>
-            </div>
-            <div class="footer">
-                <p>This is an automated message from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>We received a request to reset your password for your Nigcomsat PMS account. Click the button below to reset your password:</p>
+                    <center>
+                        <a href="{reset_link}" class="button">Reset Your Password</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{reset_link}</div>
+                    <div class="notice-box">
+                        <strong>Security Notice:</strong>
+                        <ul style="margin: 10px 0;">
+                            <li>This link is valid for one-time use only</li>
+                            <li>If you didn't request this reset, please ignore this email</li>
+                            <li>Your password will remain unchanged unless you use this link</li>
+                        </ul>
+                    </div>
+                    <p>If you have any concerns, please contact your system administrator immediately.</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -248,80 +295,104 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .task-card {{
-                    background: #f9fafb;
-                    border-left: 4px solid #3b82f6;
+                    background: #f7f6f3;
+                    border-left: 3px solid #37352f;
                     padding: 20px;
                     margin: 20px 0;
-                    border-radius: 6px;
+                    border-radius: 4px;
                 }}
                 .task-card h3 {{
-                    margin-top: 0;
-                    color: #1f2937;
+                    margin: 0 0 12px;
+                    color: #37352f;
+                    font-size: 16px;
+                    font-weight: 600;
+                }}
+                .task-card p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #3b82f6;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>New Task Assigned</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>You have been assigned a new task by {created_by_name}.</p>
-                <div class="task-card">
-                    <h3>{task_title}</h3>
-                    <p><strong>Due Date:</strong> {due_date}</p>
-                    <p><strong>Assigned by:</strong> {created_by_name}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>New Task Assigned</h1>
                 </div>
-                <center>
-                    <a href="{task_link}" class="button">View Task Details</a>
-                </center>
-                <p>Please review the task details and ensure timely completion.</p>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>You have been assigned a new task by {created_by_name}.</p>
+                    <div class="task-card">
+                        <h3>{task_title}</h3>
+                        <p><strong>Due Date:</strong> {due_date}</p>
+                        <p><strong>Assigned by:</strong> {created_by_name}</p>
+                    </div>
+                    <center>
+                        <a href="{task_link}" class="button">View Task Details</a>
+                    </center>
+                    <p>Please review the task details and ensure timely completion.</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                </div>
             </div>
         </body>
         </html>
@@ -344,64 +415,81 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #10b981;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>Task Submitted for Review</h1>
-            </div>
-            <div class="content">
-                <p>Hello {creator_name},</p>
-                <p><strong>{submitted_by_name}</strong> has submitted the task <strong>"{task_title}"</strong> for your review.</p>
-                <center>
-                    <a href="{task_link}" class="button">Review Task</a>
-                </center>
-                <p>Please review the submission and provide feedback.</p>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Task Submitted for Review</h1>
+                </div>
+                <div class="content">
+                    <p>Hello {creator_name},</p>
+                    <p><strong>{submitted_by_name}</strong> has submitted the task <strong>"{task_title}"</strong> for your review.</p>
+                    <center>
+                        <a href="{task_link}" class="button">Review Task</a>
+                    </center>
+                    <p>Please review the submission and provide feedback.</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                </div>
             </div>
         </body>
         </html>
@@ -418,7 +506,6 @@ class EmailService:
         """Send task review notification to assignee"""
         task_link = f"{FRONTEND_URL}/dashboard/tasks"
         status = "Approved" if approved else "Needs Revision"
-        color = "#10b981" if approved else "#f59e0b"
 
         html = f"""
         <!DOCTYPE html>
@@ -426,75 +513,97 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, {color} 0%, {color} 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .score-box {{
-                    background: #f9fafb;
-                    border-left: 4px solid {color};
+                    background: #f7f6f3;
+                    border-left: 3px solid #37352f;
                     padding: 20px;
                     margin: 20px 0;
-                    border-radius: 6px;
+                    border-radius: 4px;
+                }}
+                .score-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: {color};
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>Task Reviewed: {status}</h1>
-            </div>
-            <div class="content">
-                <p>Hello {assignee_name},</p>
-                <p>Your task <strong>"{task_title}"</strong> has been reviewed.</p>
-                <div class="score-box">
-                    <p><strong>Status:</strong> {status}</p>
-                    <p><strong>Score:</strong> {score}/10</p>
-                    {f'<p><strong>Feedback:</strong> {feedback}</p>' if feedback else ''}
+            <div class="container">
+                <div class="header">
+                    <h1>Task Reviewed: {status}</h1>
                 </div>
-                <center>
-                    <a href="{task_link}" class="button">View Task Details</a>
-                </center>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                <div class="content">
+                    <p>Hello {assignee_name},</p>
+                    <p>Your task <strong>"{task_title}"</strong> has been reviewed.</p>
+                    <div class="score-box">
+                        <p><strong>Status:</strong> {status}</p>
+                        <p><strong>Score:</strong> {score}/10</p>
+                        {f'<p><strong>Feedback:</strong> {feedback}</p>' if feedback else ''}
+                    </div>
+                    <center>
+                        <a href="{task_link}" class="button">View Task Details</a>
+                    </center>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                </div>
             </div>
         </body>
         </html>
@@ -528,88 +637,113 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .details-box {{
-                    background: #f9fafb;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #3b82f6;
+                    border-left: 3px solid #37352f;
+                }}
+                .details-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #3b82f6;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>🔔 Initiative Approval Required</h1>
-            </div>
-            <div class="content">
-                <p>Hello {supervisor_name},</p>
-                <p><strong>{creator_name}</strong> has created a new initiative that requires your approval:</p>
-                <div class="details-box">
-                    <p><strong>Initiative:</strong> {initiative_title}</p>
-                    <p><strong>Created by:</strong> {creator_name}</p>
-                    <p><strong>Due Date:</strong> {due_date}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Initiative Approval Required</h1>
                 </div>
-                <p>Please review and approve or reject this initiative at your earliest convenience.</p>
-                <center>
-                    <a href="{initiative_link}" class="button">Review Initiative</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{initiative_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {supervisor_name},</p>
+                    <p><strong>{creator_name}</strong> has created a new initiative that requires your approval:</p>
+                    <div class="details-box">
+                        <p><strong>Initiative:</strong> {initiative_title}</p>
+                        <p><strong>Created by:</strong> {creator_name}</p>
+                        <p><strong>Due Date:</strong> {due_date}</p>
+                    </div>
+                    <p>Please review and approve or reject this initiative at your earliest convenience.</p>
+                    <center>
+                        <a href="{initiative_link}" class="button">Review Initiative</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{initiative_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -632,7 +766,6 @@ class EmailService:
     ):
         """Send initiative overdue notification"""
         initiative_link = f"{FRONTEND_URL}/dashboard/initiatives?id={initiative_id}"
-        recipient_type = "supervisor" if is_supervisor else "assignee"
 
         html = f"""
         <!DOCTYPE html>
@@ -640,88 +773,113 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .warning-box {{
-                    background: #fef2f2;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #ef4444;
+                    border-left: 3px solid #37352f;
+                }}
+                .warning-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #ef4444;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>⚠️ Initiative Overdue</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>The following initiative is now <strong>overdue</strong>:</p>
-                <div class="warning-box">
-                    <p><strong>Initiative:</strong> {initiative_title}</p>
-                    <p><strong>Original Due Date:</strong> {due_date}</p>
-                    <p><strong>Status:</strong> <span style="color: #ef4444;">OVERDUE</span></p>
+            <div class="container">
+                <div class="header">
+                    <h1>Initiative Overdue</h1>
                 </div>
-                <p>{"As a supervisor, please follow up with the assignee to address this overdue initiative." if is_supervisor else "Please submit this initiative or request an extension as soon as possible."}</p>
-                <center>
-                    <a href="{initiative_link}" class="button">View Initiative</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{initiative_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>The following initiative is now <strong>overdue</strong>:</p>
+                    <div class="warning-box">
+                        <p><strong>Initiative:</strong> {initiative_title}</p>
+                        <p><strong>Original Due Date:</strong> {due_date}</p>
+                        <p><strong>Status:</strong> OVERDUE</p>
+                    </div>
+                    <p>{"As a supervisor, please follow up with the assignee to address this overdue initiative." if is_supervisor else "Please submit this initiative or request an extension as soon as possible."}</p>
+                    <center>
+                        <a href="{initiative_link}" class="button">View Initiative</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{initiative_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -729,7 +887,7 @@ class EmailService:
 
         return EmailService.send_email(
             to=[user_email],
-            subject=f"⚠️ Initiative Overdue: {initiative_title}",
+            subject=f"Initiative Overdue: {initiative_title}",
             html=html
         )
 
@@ -752,89 +910,114 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .info-box {{
-                    background: #fffbeb;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #f59e0b;
+                    border-left: 3px solid #37352f;
+                }}
+                .info-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #f59e0b;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>📅 Extension Request</h1>
-            </div>
-            <div class="content">
-                <p>Hello {supervisor_name},</p>
-                <p><strong>{requester_name}</strong> has requested an extension for the following initiative:</p>
-                <div class="info-box">
-                    <p><strong>Initiative:</strong> {initiative_title}</p>
-                    <p><strong>Requested by:</strong> {requester_name}</p>
-                    <p><strong>New Due Date:</strong> {new_due_date}</p>
-                    <p><strong>Reason:</strong> {reason}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Extension Request</h1>
                 </div>
-                <p>Please review and approve or deny this extension request.</p>
-                <center>
-                    <a href="{initiative_link}" class="button">Review Request</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{initiative_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {supervisor_name},</p>
+                    <p><strong>{requester_name}</strong> has requested an extension for the following initiative:</p>
+                    <div class="info-box">
+                        <p><strong>Initiative:</strong> {initiative_title}</p>
+                        <p><strong>Requested by:</strong> {requester_name}</p>
+                        <p><strong>New Due Date:</strong> {new_due_date}</p>
+                        <p><strong>Reason:</strong> {reason}</p>
+                    </div>
+                    <p>Please review and approve or deny this extension request.</p>
+                    <center>
+                        <a href="{initiative_link}" class="button">Review Request</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{initiative_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -863,87 +1046,112 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .success-box {{
-                    background: #f0fdf4;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #10b981;
+                    border-left: 3px solid #37352f;
+                }}
+                .success-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #10b981;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>✅ Extension Approved</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>Good news! Your extension request has been <strong>approved</strong>.</p>
-                <div class="success-box">
-                    <p><strong>Initiative:</strong> {initiative_title}</p>
-                    <p><strong>New Due Date:</strong> {new_due_date}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Extension Approved</h1>
                 </div>
-                <p>You now have additional time to complete this initiative. Please ensure to submit it by the new deadline.</p>
-                <center>
-                    <a href="{initiative_link}" class="button">View Initiative</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{initiative_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>Good news! Your extension request has been <strong>approved</strong>.</p>
+                    <div class="success-box">
+                        <p><strong>Initiative:</strong> {initiative_title}</p>
+                        <p><strong>New Due Date:</strong> {new_due_date}</p>
+                    </div>
+                    <p>You now have additional time to complete this initiative. Please ensure to submit it by the new deadline.</p>
+                    <center>
+                        <a href="{initiative_link}" class="button">View Initiative</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{initiative_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -972,87 +1180,112 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .error-box {{
-                    background: #fef2f2;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #ef4444;
+                    border-left: 3px solid #37352f;
+                }}
+                .error-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #ef4444;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>❌ Extension Request Denied</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>Your extension request has been <strong>denied</strong>.</p>
-                <div class="error-box">
-                    <p><strong>Initiative:</strong> {initiative_title}</p>
-                    <p><strong>Reason:</strong> {denial_reason}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Extension Request Denied</h1>
                 </div>
-                <p>Please complete and submit the initiative by the original deadline, or discuss with your supervisor for alternative arrangements.</p>
-                <center>
-                    <a href="{initiative_link}" class="button">View Initiative</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{initiative_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>Your extension request has been <strong>denied</strong>.</p>
+                    <div class="error-box">
+                        <p><strong>Initiative:</strong> {initiative_title}</p>
+                        <p><strong>Reason:</strong> {denial_reason}</p>
+                    </div>
+                    <p>Please complete and submit the initiative by the original deadline, or discuss with your supervisor for alternative arrangements.</p>
+                    <center>
+                        <a href="{initiative_link}" class="button">View Initiative</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{initiative_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -1085,89 +1318,114 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .details-box {{
-                    background: #f5f3ff;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #8b5cf6;
+                    border-left: 3px solid #37352f;
+                }}
+                .details-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #8b5cf6;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>🎯 Goal Approval Required</h1>
-            </div>
-            <div class="content">
-                <p>Hello {supervisor_name},</p>
-                <p><strong>{creator_name}</strong> has created a new goal that requires your approval:</p>
-                <div class="details-box">
-                    <p><strong>Goal:</strong> {goal_title}</p>
-                    <p><strong>Type:</strong> {goal_type}</p>
-                    <p><strong>Period:</strong> {period}</p>
-                    <p><strong>Created by:</strong> {creator_name}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Goal Approval Required</h1>
                 </div>
-                <p>Please review and approve or reject this goal at your earliest convenience.</p>
-                <center>
-                    <a href="{goal_link}" class="button">Review Goal</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{goal_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {supervisor_name},</p>
+                    <p><strong>{creator_name}</strong> has created a new goal that requires your approval:</p>
+                    <div class="details-box">
+                        <p><strong>Goal:</strong> {goal_title}</p>
+                        <p><strong>Type:</strong> {goal_type}</p>
+                        <p><strong>Period:</strong> {period}</p>
+                        <p><strong>Created by:</strong> {creator_name}</p>
+                    </div>
+                    <p>Please review and approve or reject this goal at your earliest convenience.</p>
+                    <center>
+                        <a href="{goal_link}" class="button">Review Goal</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{goal_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -1196,88 +1454,113 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .success-box {{
-                    background: #f0fdf4;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #10b981;
+                    border-left: 3px solid #37352f;
+                }}
+                .success-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #10b981;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>✅ Goal Approved</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>Great news! Your goal has been <strong>approved</strong>.</p>
-                <div class="success-box">
-                    <p><strong>Goal:</strong> {goal_title}</p>
-                    <p><strong>Approved by:</strong> {approved_by_name}</p>
-                    <p><strong>Status:</strong> <span style="color: #10b981;">ACTIVE</span></p>
+            <div class="container">
+                <div class="header">
+                    <h1>Goal Approved</h1>
                 </div>
-                <p>You can now start working on achieving this goal. Good luck!</p>
-                <center>
-                    <a href="{goal_link}" class="button">View Goal</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{goal_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>Great news! Your goal has been <strong>approved</strong>.</p>
+                    <div class="success-box">
+                        <p><strong>Goal:</strong> {goal_title}</p>
+                        <p><strong>Approved by:</strong> {approved_by_name}</p>
+                        <p><strong>Status:</strong> ACTIVE</p>
+                    </div>
+                    <p>You can now start working on achieving this goal. Good luck!</p>
+                    <center>
+                        <a href="{goal_link}" class="button">View Goal</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{goal_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
@@ -1307,88 +1590,113 @@ class EmailService:
         <head>
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #37352f;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 40px 20px;
+                    background-color: #ffffff;
+                }}
+                .container {{
+                    background: #ffffff;
+                    border: 1px solid #e9e9e7;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 8px 8px 0 0;
+                    padding: 40px 40px 32px;
+                    border-bottom: 1px solid #e9e9e7;
                 }}
                 .header h1 {{
-                    color: white;
+                    color: #37352f;
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
                 }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    padding: 32px 40px;
+                }}
+                .content p {{
+                    margin: 0 0 16px;
+                    color: #37352f;
+                    font-size: 14px;
+                    line-height: 1.6;
                 }}
                 .error-box {{
-                    background: #fef2f2;
+                    background: #f7f6f3;
                     padding: 20px;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     margin: 20px 0;
-                    border-left: 4px solid #ef4444;
+                    border-left: 3px solid #37352f;
+                }}
+                .error-box p {{
+                    margin: 8px 0;
+                    font-size: 14px;
+                    color: #37352f;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #ef4444;
+                    padding: 10px 20px;
+                    background: #37352f;
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    margin: 20px 0;
+                    margin: 16px 0;
                     font-weight: 500;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }}
+                .button:hover {{
+                    background: #2f2e2a;
                 }}
                 .footer {{
-                    background: #f9fafb;
-                    padding: 20px;
+                    padding: 32px 40px;
+                    background: #f7f6f3;
                     text-align: center;
-                    border-radius: 0 0 8px 8px;
-                    color: #6b7280;
-                    font-size: 14px;
+                    color: #787774;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }}
-                .code {{
-                    background: #f3f4f6;
-                    padding: 15px;
+                .footer p {{
+                    margin: 8px 0;
+                }}
+                .link-box {{
+                    background: #f7f6f3;
+                    padding: 16px;
                     border-radius: 6px;
-                    font-family: monospace;
-                    margin: 15px 0;
+                    margin: 16px 0;
                     word-break: break-all;
-                    font-size: 12px;
+                    font-size: 13px;
+                    color: #787774;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>❌ Goal Not Approved</h1>
-            </div>
-            <div class="content">
-                <p>Hello {user_name},</p>
-                <p>Your goal has not been approved.</p>
-                <div class="error-box">
-                    <p><strong>Goal:</strong> {goal_title}</p>
-                    <p><strong>Reviewed by:</strong> {rejected_by_name}</p>
-                    <p><strong>Reason:</strong> {rejection_reason}</p>
+            <div class="container">
+                <div class="header">
+                    <h1>Goal Not Approved</h1>
                 </div>
-                <p>Please review the feedback above and make necessary adjustments. You can edit and resubmit your goal for approval.</p>
-                <center>
-                    <a href="{goal_link}" class="button">Edit Goal</a>
-                </center>
-                <p>Or copy and paste this link in your browser:</p>
-                <div class="code">{goal_link}</div>
-            </div>
-            <div class="footer">
-                <p>This is an automated notification from Nigcomsat Performance Management System</p>
-                <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                <div class="content">
+                    <p>Hello {user_name},</p>
+                    <p>Your goal has not been approved.</p>
+                    <div class="error-box">
+                        <p><strong>Goal:</strong> {goal_title}</p>
+                        <p><strong>Reviewed by:</strong> {rejected_by_name}</p>
+                        <p><strong>Reason:</strong> {rejection_reason}</p>
+                    </div>
+                    <p>Please review the feedback above and make necessary adjustments. You can edit and resubmit your goal for approval.</p>
+                    <center>
+                        <a href="{goal_link}" class="button">Edit Goal</a>
+                    </center>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <div class="link-box">{goal_link}</div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from Nigcomsat Performance Management System</p>
+                    <p>&copy; 2024 Nigcomsat. All rights reserved.</p>
+                </div>
             </div>
         </body>
         </html>
