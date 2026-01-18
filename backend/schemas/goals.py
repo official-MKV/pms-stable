@@ -25,7 +25,8 @@ class Quarter(str, Enum):
 
 class GoalBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: Optional[str] = None  # Supports rich text (HTML)
+    kpis: Optional[str] = None  # Key Performance Indicators
     type: GoalType
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -62,12 +63,15 @@ class GoalBase(BaseModel):
 class GoalCreate(GoalBase):
     parent_goal_id: Optional[uuid.UUID] = None
     owner_id: Optional[uuid.UUID] = None  # For INDIVIDUAL goals (if creating for someone else)
+    tag_ids: Optional[List[uuid.UUID]] = []  # Goal tags/labels
 
 class GoalUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    kpis: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    tag_ids: Optional[List[uuid.UUID]] = None
 
     @validator('start_date', 'end_date', pre=True)
     def empty_string_to_none(cls, v):
@@ -105,12 +109,30 @@ class GoalInDB(GoalBase):
     class Config:
         from_attributes = True
 
+class GoalTagBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    color: str = Field(..., min_length=4, max_length=7)  # Hex color
+    description: Optional[str] = None
+
+class GoalTagCreate(GoalTagBase):
+    pass
+
+class GoalTag(GoalTagBase):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    created_by: uuid.UUID
+
+    class Config:
+        from_attributes = True
+
 class Goal(GoalInDB):
     creator_name: Optional[str] = None
     owner_name: Optional[str] = None
     approver_name: Optional[str] = None
     parent_goal_title: Optional[str] = None
     child_count: Optional[int] = 0
+    tags: List['GoalTag'] = []
 
 class GoalWithChildren(Goal):
     children: List['GoalWithChildren'] = []

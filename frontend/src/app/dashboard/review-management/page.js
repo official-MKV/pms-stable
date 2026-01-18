@@ -76,7 +76,7 @@ const getReviewTypeColor = (type) => {
   return reviewTypeColors[type?.toLowerCase()] || "bg-blue-100 text-blue-800"
 }
 
-// Trait Management Components
+ 
 function TraitManagement() {
   const [traits, setTraits] = useState([])
   const [loading, setLoading] = useState(true)
@@ -135,7 +135,7 @@ function TraitManagement() {
     }
   }
 
-  // Filter traits based on search and scope
+  
   const filteredTraits = traits.filter(trait => {
     const matchesSearch = !searchTerm ||
       trait.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -150,7 +150,7 @@ function TraitManagement() {
   const fetchQuestions = async (traitId) => {
     try {
       const data = await GET(`/api/reviews/traits/${traitId}/questions`)
-      // Group questions by review types they apply to
+      
       const groupedQuestions = {
         self: data.filter(q => q.applies_to_self),
         peer: data.filter(q => q.applies_to_peer),
@@ -251,80 +251,73 @@ function TraitManagement() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredTraits.length > 0 ? (
-          filteredTraits.map((trait) => (
-            <Card key={trait.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{trait.name}</CardTitle>
-                  <div className="flex gap-2">
-                    <Badge variant="secondary">{trait.question_count} questions</Badge>
-                  </div>
+      <div className="grid gap-4">
+      {filteredTraits.length > 0 ? (
+        filteredTraits.map((trait) => (
+          <Card key={trait.id} className="hover:shadow-md transition-shadow flex flex-col">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{trait.name}</CardTitle>
+                <div className="flex gap-2">
+                  <Badge variant="secondary">{trait.question_count} questions</Badge>
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge
-                    variant="outline"
-                    className={
-                      trait.scope_type === 'global' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                      trait.scope_type === 'directorate' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                      trait.scope_type === 'department' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                      'bg-gray-50 text-gray-700 border-gray-200'
-                    }
-                  >
-                    {trait.scope_type === 'global' ? 'Global' :
-                     trait.scope_type === 'directorate' ? 'Directorate' :
-                     trait.scope_type === 'department' ? 'Department' : 'Unit'}
-                  </Badge>
-                  {trait.organization_name && (
-                    <span className="text-xs text-muted-foreground">
-                      {trait.organization_name}
-                    </span>
-                  )}
-                </div>
-                {trait.description && (
-                  <CardDescription className="text-sm mt-2">
-                    {trait.description}
-                  </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge
+                  variant="outline"
+                  className={
+                    trait.scope_type === "global"
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : trait.scope_type === "directorate"
+                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                        : trait.scope_type === "department"
+                          ? "bg-orange-50 text-orange-700 border-orange-200"
+                          : "bg-gray-50 text-gray-700 border-gray-200"
+                  }
+                >
+                  {trait.scope_type === "global"
+                    ? "Global"
+                    : trait.scope_type === "directorate"
+                      ? "Directorate"
+                      : trait.scope_type === "department"
+                        ? "Department"
+                        : "Unit"}
+                </Badge>
+                {trait.organization_name && (
+                  <span className="text-xs text-muted-foreground">{trait.organization_name}</span>
                 )}
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTrait(trait)
-                      fetchQuestions(trait.id)
-                    }}
-                  >
-                    <Settings className="w-3 h-3 mr-1" />
-                    Manage Questions
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => deleteTrait(trait.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No values/competencies found</h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || scopeFilter !== "all"
-                ? "Try adjusting your filters"
-                : "Get started by adding your first value or competency"}
-            </p>
-          </div>
-        )}
-      </div>
+              </div>
+              {trait.description && <CardDescription className="text-sm mt-3">{trait.description}</CardDescription>}
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col justify-end pt-0">
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setSelectedTrait(trait)
+                    fetchQuestions(trait.id)
+                  }}
+                >
+                  <Settings className="w-3 h-3 mr-1" />
+                  Manage Questions
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => deleteTrait(trait.id)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      ) : (
+        <div>No traits found</div>
+      )}
+    </div>
 
       {/* Dialogs for trait and question management */}
       <TraitDialog
@@ -871,50 +864,58 @@ function QuestionDialog({ open, onClose, onSubmit, trait, initialReviewType = nu
   )
 }
 
-function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuestion, onAddQuestionWithType, onRefreshQuestions }) {
+function QuestionsManagementDialog({
+  open,
+  onClose,
+  trait,
+  questions,
+  onAddQuestion,
+  onAddQuestionWithType,
+  onRefreshQuestions,
+}) {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const reviewTypes = [
-    { key: 'self', label: 'Self Review', color: 'bg-blue-100 text-blue-800' },
-    { key: 'peer', label: 'Peer Review', color: 'bg-purple-100 text-purple-800' },
-    { key: 'supervisor', label: 'Supervisor Review', color: 'bg-orange-100 text-orange-800' }
+    { key: "self", label: "Self Review", color: "bg-blue-100 text-blue-800" },
+    { key: "peer", label: "Peer Review", color: "bg-purple-100 text-purple-800" },
+    { key: "supervisor", label: "Supervisor Review", color: "bg-orange-100 text-orange-800" },
   ]
 
-  const hasAnyQuestions = questions && Object.values(questions).some(typeQuestions => typeQuestions.length > 0)
+  const hasAnyQuestions = questions && Object.values(questions).some((typeQuestions) => typeQuestions.length > 0)
 
   const deleteQuestion = async (questionId) => {
     try {
       await DELETE(`/api/reviews/questions/${questionId}`)
-      toast.success('Question deleted successfully')
+      toast.success("Question deleted successfully")
       onRefreshQuestions()
     } catch (error) {
-      console.error('Error deleting question:', error)
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete question'
+      console.error("Error deleting question:", error)
+      const errorMessage = error.response?.data?.detail || error.message || "Failed to delete question"
       toast.error(errorMessage)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle>Manage {trait?.name} Questions</DialogTitle>
-              <DialogDescription>
+      <DialogContent className="max-w-5xl max-h-[90vh] p-6">
+        <DialogHeader className="mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <DialogTitle className="text-2xl">Manage {trait?.name} Questions</DialogTitle>
+              <DialogDescription className="mt-2">
                 Add, edit, or remove questions for this trait. Each question is rated on a scale of 1-10.
               </DialogDescription>
             </div>
-            <Button onClick={onAddQuestion} size="sm">
+            <Button onClick={onAddQuestion} size="sm" className="mt-1 flex-shrink-0">
               <Plus className="w-4 h-4 mr-2" />
               Add Question
             </Button>
           </div>
         </DialogHeader>
 
-        <div className="overflow-y-auto">
-          <Tabs defaultValue="self" className="space-y-4">
+        <div className="overflow-y-auto pr-4">
+          <Tabs defaultValue="self" className="space-y-6">
             <TabsList className="grid w-full grid-cols-3">
-              {reviewTypes.map(type => (
+              {reviewTypes.map((type) => (
                 <TabsTrigger key={type.key} value={type.key} className="flex items-center gap-2">
                   <Badge className={`${type.color} text-xs`}>
                     {questions && questions[type.key] ? questions[type.key].length : 0}
@@ -924,47 +925,41 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
               ))}
             </TabsList>
 
-            {reviewTypes.map(type => (
-              <TabsContent key={type.key} value={type.key} className="space-y-3">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium">Questions for {type.label}</h4>
+            {reviewTypes.map((type) => (
+              <TabsContent key={type.key} value={type.key} className="space-y-4 mt-4">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="font-medium text-lg">Questions for {type.label}</h4>
                   <Button onClick={() => onAddQuestionWithType(type.key)} size="sm" variant="outline">
                     <Plus className="w-3 h-3 mr-1" />
                     Add {type.label} Question
                   </Button>
                 </div>
 
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-4">
                   {questions && questions[type.key] && questions[type.key].length > 0 ? (
                     questions[type.key].map((question, index) => (
-                      <Card key={question.id}>
-                        <CardContent className="pt-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <p className="text-sm font-medium flex-1">
-                              <span className="text-gray-500 mr-2">{index + 1}.</span>
+                      <Card key={question.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6 pb-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <p className="text-sm font-medium flex-1 leading-relaxed">
+                              <span className="text-gray-500 mr-3 font-semibold">{index + 1}.</span>
                               {question.question_text}
                             </p>
-                            <div className="flex items-center gap-2 ml-2">
-                              <Badge className={`${type.color} text-xs`}>
-                                1-10 Scale
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setEditingQuestion(question)}
-                              >
-                                <Edit className="w-3 h-3" />
+                            <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                              <Badge className={`${type.color} text-xs whitespace-nowrap`}>1-10 Scale</Badge>
+                              <Button size="sm" variant="ghost" onClick={() => setEditingQuestion(question)}>
+                                <Edit className="w-4 h-4" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  if (confirm('Are you sure you want to delete this question?')) {
+                                  if (confirm("Are you sure you want to delete this question?")) {
                                     deleteQuestion(question.id)
                                   }
                                 }}
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
                           </div>
@@ -972,10 +967,10 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
                       </Card>
                     ))
                   ) : (
-                    <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                    <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
                       <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                       <h4 className="text-lg font-medium text-gray-900 mb-2">No {type.label} Questions</h4>
-                      <p className="text-gray-500 mb-4">
+                      <p className="text-gray-500 mb-6">
                         No questions have been added for {type.label.toLowerCase()} yet.
                       </p>
                       <Button onClick={() => onAddQuestionWithType(type.key)} size="sm">
@@ -990,10 +985,10 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
           </Tabs>
 
           {!hasAnyQuestions && (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
               <h4 className="text-lg font-medium text-gray-900 mb-2">No Questions Added</h4>
-              <p className="text-gray-500 mb-4">
+              <p className="text-gray-500 mb-6">
                 This trait doesn&apos;t have any questions yet. Add questions to use this trait in review cycles.
               </p>
               <Button onClick={onAddQuestion}>
@@ -1004,7 +999,7 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-8">
           <Button onClick={onClose}>Done</Button>
         </DialogFooter>
       </DialogContent>
@@ -1012,7 +1007,7 @@ function QuestionsManagementDialog({ open, onClose, trait, questions, onAddQuest
   )
 }
 
-// Main Review Management Page Component
+ 
 export default function ReviewManagementPage() {
   const { user } = useAuth()
   const router = useRouter()

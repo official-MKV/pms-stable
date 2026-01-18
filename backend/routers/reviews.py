@@ -137,8 +137,11 @@ async def get_review_cycles(
     db: Session = Depends(get_db)
 ):
     """Get all review cycles visible to the current user"""
-    if "reviews_read_all" in current_user.permissions:
-        cycles = db.query(ReviewCycle).all()
+    # Admins can see all cycles regardless of status
+    if ("review_view_all" in current_user.permissions or
+        "review_manage_cycle" in current_user.permissions or
+        "system_admin" in current_user.permissions):
+        cycles = db.query(ReviewCycle).order_by(desc(ReviewCycle.created_at)).all()
     else:
         # Cycles where user is creator OR has review assignments
         cycles = db.query(ReviewCycle).filter(
@@ -299,8 +302,65 @@ async def update_review_cycle(
     
     db.commit()
     db.refresh(cycle)
-    
+
     return cycle
+
+@router.post("/cycles/{cycle_id}/sync-traits")
+async def sync_cycle_traits(
+    cycle_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Sync all active traits to this cycle
+    This is useful when traits are created after the cycle was created
+    """
+    cycle = db.query(ReviewCycle).filter(ReviewCycle.id == cycle_id).first()
+
+    if not cycle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Review cycle not found"
+        )
+
+    # Check permissions
+    if not ("review_manage_cycle" in current_user.permissions or
+            "system_admin" in current_user.permissions or
+            cycle.created_by == current_user.user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to sync traits for this cycle"
+        )
+
+    # Get all currently active traits
+    all_traits = db.query(ReviewTrait).filter(ReviewTrait.is_active == True).all()
+
+    # Get currently linked traits
+    existing_links = db.query(ReviewCycleTrait).filter(
+        ReviewCycleTrait.cycle_id == cycle_id
+    ).all()
+    existing_trait_ids = {link.trait_id for link in existing_links}
+
+    # Link any new traits that aren't already linked
+    new_links_count = 0
+    for trait in all_traits:
+        if trait.id not in existing_trait_ids:
+            cycle_trait = ReviewCycleTrait(
+                cycle_id=cycle.id,
+                trait_id=trait.id,
+                is_active=True
+            )
+            db.add(cycle_trait)
+            new_links_count += 1
+
+    db.commit()
+
+    return {
+        "message": f"Successfully synced traits to cycle",
+        "cycle_id": str(cycle_id),
+        "new_traits_linked": new_links_count,
+        "total_traits": len(all_traits)
+    }
 
 @router.post("/cycles/{cycle_id}/start")
 async def start_review_cycle(
@@ -3211,9 +3271,10 @@ async def get_traits(
 
     trait_service = TraitInheritanceService(db)
 
-    
-    # has_admin_permission = "review_trait_manage" in current_user.permissions
-    has_admin_permission= True
+    # Check if user has admin permission to view all traits
+    has_admin_permission = ("review_trait_manage" in current_user.permissions or
+                           "review_manage_cycle" in current_user.permissions or
+                           "system_admin" in current_user.permissions)
 
     if all_traits is None:
          

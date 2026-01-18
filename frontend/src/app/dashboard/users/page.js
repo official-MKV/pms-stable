@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Plus, Users, Search, Filter, MoreHorizontal, Edit, Trash2, Mail, Eye, Send, Key } from "lucide-react"
 import { GET, POST } from "@/lib/api"
 import { toast } from "sonner"
@@ -68,107 +69,6 @@ const statusLabels = {
   ARCHIVED: "Archived"
 }
 
- 
-function UserDetailsDialog({ user, isOpen, onClose }) {
-  if (!user) return null
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
-              <AvatarImage
-                src={user.profile_image_url ? `${process.env.NEXT_PUBLIC_API_URL}${user.profile_image_url}` : undefined}
-                alt={user.name || 'User'}
-              />
-              <AvatarFallback>
-                {user.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div>{user.name}</div>
-              <div className="text-sm text-muted-foreground">{user.email}</div>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Job Title</Label>
-              <p className="mt-1">{user.job_title || 'Not specified'}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Level</Label>
-              <p className="mt-1">{user.level || 'Not specified'}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Organizational Unit</Label>
-              <p className="mt-1">{user.organization_name || 'Not assigned'}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Role</Label>
-              <p className="mt-1">{user.role_name || 'Not assigned'}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
-              <p className="mt-1">{user.phone || 'Not provided'}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-              <Badge className={`mt-1 ${statusColors[user.status]}`}>
-                {statusLabels[user.status]}
-              </Badge>
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium text-muted-foreground">Address</Label>
-            <p className="mt-1">{user.address || 'Not provided'}</p>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium text-muted-foreground">Skillset</Label>
-            <p className="mt-1">{user.skillset || 'Not specified'}</p>
-          </div>
-
-          {user.supervisor_id && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Supervisor</Label>
-              <p className="mt-1">{user.supervisor_name || 'Unknown'}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Created</Label>
-              <p className="mt-1">{new Date(user.created_at).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Last Updated</Label>
-              <p className="mt-1">{new Date(user.updated_at).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
- 
 function ConfirmDialog({ isOpen, onClose, onConfirm, title, description }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -190,9 +90,9 @@ function ConfirmDialog({ isOpen, onClose, onConfirm, title, description }) {
 }
 
 export default function UsersPage() {
+  const router = useRouter()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
-  const [viewingUser, setViewingUser] = useState(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
@@ -223,10 +123,6 @@ export default function UsersPage() {
   const handleEdit = (user) => {
     setEditingUser(user)
     setIsFormOpen(true)
-  }
-
-  const handleView = (user) => {
-    setViewingUser(user)
   }
 
   const handleStatusChange = (user, newStatus) => {
@@ -427,7 +323,11 @@ export default function UsersPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => router.push(`/dashboard/users/${user.id}`)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
@@ -465,16 +365,16 @@ export default function UsersPage() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(user)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(user)}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(user); }}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
@@ -552,12 +452,6 @@ export default function UsersPage() {
           organizations={organizations}
           roles={roles}
           onFetchSupervisors={fetchEligibleSupervisors}
-        />
-
-        <UserDetailsDialog
-          user={viewingUser}
-          isOpen={!!viewingUser}
-          onClose={() => setViewingUser(null)}
         />
 
         <ConfirmDialog

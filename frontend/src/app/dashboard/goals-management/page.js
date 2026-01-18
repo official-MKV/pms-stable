@@ -19,7 +19,8 @@ import {
   Shield,
   Users,
   Search,
-  X
+  X,
+  Tag
 } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -47,6 +48,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { useAuth, usePermission } from "@/lib/auth-context"
 import {
   useGoals,
@@ -58,6 +60,12 @@ import {
   useFreezeGoalsQuarter,
   useUnfreezeGoalsQuarter,
   useGoalFreezeLogs,
+  useGoalTags,
+  useCreateGoalTag,
+  useUpdateGoalTag,
+  useDeleteGoalTag,
+  useFreezeGoal,
+  useUnfreezeGoal,
 } from "@/lib/react-query"
 import { Progress } from "@/components/ui/progress"
 
@@ -77,15 +85,26 @@ const typeIcons = {
   QUARTERLY: Calendar,
 }
 
-function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange }) {
+function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, onFreeze, onUnfreeze, canFreeze, onViewDetails }) {
   const TypeIcon = typeIcons[goal.type]
 
   return (
-    <Card className="group hover:shadow-md transition-all duration-200">
+    <Card
+      className="group hover:shadow-md transition-all duration-200 cursor-pointer"
+      onClick={() => onViewDetails && onViewDetails(goal)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <CardTitle className="text-lg font-semibold">{goal.title}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold">{goal.title}</CardTitle>
+              {goal.frozen && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                  <Lock className="h-3 w-3 mr-1" />
+                  Frozen
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Badge className={`${statusColors[goal.status]} flex items-center gap-1.5`}>
                 {goal.status}
@@ -94,30 +113,51 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="opacity-0 group-hover:opacity-100"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(goal)}>
+              <DropdownMenuItem onClick={() => onEdit(goal)} disabled={goal.frozen}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Goal
               </DropdownMenuItem>
               {goal.status === "ACTIVE" && (
                 <>
-                  <DropdownMenuItem onClick={() => onUpdateProgress(goal)}>
+                  <DropdownMenuItem onClick={() => onUpdateProgress(goal)} disabled={goal.frozen}>
                     <FileText className="mr-2 h-4 w-4" />
                     Update Progress
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onStatusChange(goal, "ACHIEVED")}>
+                  <DropdownMenuItem onClick={() => onStatusChange(goal, "ACHIEVED")} disabled={goal.frozen}>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     Mark as Achieved
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onStatusChange(goal, "DISCARDED")}>
+                  <DropdownMenuItem onClick={() => onStatusChange(goal, "DISCARDED")} disabled={goal.frozen}>
                     <AlertCircle className="mr-2 h-4 w-4" />
                     Discard Goal
                   </DropdownMenuItem>
+                </>
+              )}
+              {canFreeze && (
+                <>
+                  <DropdownMenuSeparator />
+                  {goal.frozen ? (
+                    <DropdownMenuItem onClick={() => onUnfreeze(goal)}>
+                      <Unlock className="mr-2 h-4 w-4" />
+                      Unfreeze Goal
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => onFreeze(goal)}>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Freeze Goal
+                    </DropdownMenuItem>
+                  )}
                 </>
               )}
               <DropdownMenuSeparator />
@@ -130,7 +170,33 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-gray-600 line-clamp-2">{goal.description}</p>
+        {goal.description && (
+          <div
+            className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: goal.description }}
+          />
+        )}
+
+        {goal.tags && goal.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {goal.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className="text-xs"
+                style={{ borderColor: tag.color, color: tag.color }}
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {goal.kpis && (
+          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+            <span className="font-semibold">KPIs:</span> {goal.kpis}
+          </div>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -157,14 +223,16 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
     title: "",
     description: "",
     type: "QUARTERLY",
-    evaluation_method: "",
+    kpis: "",
     difficulty_level: 3,
     start_date: "",
     end_date: "",
     parent_goal_id: "",
+    tag_ids: [],
   })
 
   const { data: goals = [] } = useGoals()
+  const { data: tags = [] } = useGoalTags()
 
   // Update form data when goal changes
   useEffect(() => {
@@ -173,11 +241,12 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         title: goal.title || "",
         description: goal.description || "",
         type: goal.type || "QUARTERLY",
-        evaluation_method: goal.evaluation_method || "",
+        kpis: goal.kpis || "",
         difficulty_level: goal.difficulty_level || 3,
         start_date: goal.start_date || "",
         end_date: goal.end_date || "",
         parent_goal_id: goal.parent_goal_id || "",
+        tag_ids: goal.tags?.map(t => t.id) || [],
       })
     } else {
       // Reset form when creating new goal
@@ -185,11 +254,12 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         title: "",
         description: "",
         type: "QUARTERLY",
-        evaluation_method: "",
+        kpis: "",
         difficulty_level: 3,
         start_date: "",
         end_date: "",
         parent_goal_id: "",
+        tag_ids: [],
       })
     }
   }, [goal])
@@ -220,7 +290,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
 
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Goal Title</Label>
+              <Label htmlFor="title">Goal Title <span className="text-red-500">*</span></Label>
               <Input
                 id="title"
                 value={formData.title}
@@ -232,12 +302,10 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
 
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe what this goal aims to achieve"
-                rows={4}
+              <RichTextEditor
+                content={formData.description}
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                placeholder="Describe what this goal aims to achieve..."
               />
             </div>
 
@@ -280,7 +348,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="start_date">Start Date</Label>
+                <Label htmlFor="start_date">Start Date <span className="text-red-500">*</span></Label>
                 <Input
                   id="start_date"
                   type="date"
@@ -290,7 +358,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="end_date">End Date</Label>
+                <Label htmlFor="end_date">End Date <span className="text-red-500">*</span></Label>
                 <Input
                   id="end_date"
                   type="date"
@@ -324,13 +392,70 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor="evaluation_method">Evaluation Method</Label>
-              <Input
-                id="evaluation_method"
-                value={formData.evaluation_method}
-                onChange={(e) => setFormData({ ...formData, evaluation_method: e.target.value })}
-                placeholder="How will success be measured?"
+              <Label htmlFor="kpis">KPIs (Key Performance Indicators)</Label>
+              <Textarea
+                id="kpis"
+                value={formData.kpis}
+                onChange={(e) => setFormData({ ...formData, kpis: e.target.value })}
+                placeholder="Define the key performance indicators for this goal..."
+                rows={3}
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tags">Tags (Optional)</Label>
+              <Select
+                value={formData.tag_ids.length > 0 ? "multi" : "none"}
+                onValueChange={() => {}}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {formData.tag_ids.length > 0
+                      ? `${formData.tag_ids.length} tag(s) selected`
+                      : "Select tags..."}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2 space-y-2">
+                    {tags.map((tag) => (
+                      <div key={tag.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`tag-${tag.id}`}
+                          checked={formData.tag_ids.includes(tag.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                tag_ids: [...formData.tag_ids, tag.id]
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                tag_ids: formData.tag_ids.filter(id => id !== tag.id)
+                              })
+                            }
+                          }}
+                          className="h-4 w-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor={`tag-${tag.id}`}
+                          className="flex items-center gap-2 cursor-pointer flex-1"
+                        >
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="text-sm">{tag.name}</span>
+                        </label>
+                      </div>
+                    ))}
+                    {tags.length === 0 && (
+                      <p className="text-sm text-gray-500">No tags available. Create tags in the Tags Management tab.</p>
+                    )}
+                  </div>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -518,7 +643,7 @@ function ProgressUpdateDialog({ goal, isOpen, onClose, onSubmit }) {
             </div>
 
             <div className="grid gap-3">
-              <Label htmlFor="report">Progress Report *</Label>
+              <Label htmlFor="report">Progress Report <span className="text-red-500">*</span></Label>
               <Textarea
                 id="report"
                 value={formData.report}
@@ -542,17 +667,179 @@ function ProgressUpdateDialog({ goal, isOpen, onClose, onSubmit }) {
   )
 }
 
+function TagManagementDialog({ tag, isOpen, onClose, onSubmit }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    color: "#6B7280",
+    description: "",
+  })
+
+  useEffect(() => {
+    if (tag) {
+      setFormData({
+        name: tag.name || "",
+        color: tag.color || "#6B7280",
+        description: tag.description || "",
+      })
+    } else {
+      setFormData({
+        name: "",
+        color: "#6B7280",
+        description: "",
+      })
+    }
+  }, [tag])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit(formData)
+    onClose()
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>{tag ? "Edit Tag" : "Create Tag"}</DialogTitle>
+            <DialogDescription>
+              {tag ? "Update the tag details" : "Create a new tag for categorizing goals"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="tag-name">Tag Name</Label>
+              <Input
+                id="tag-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Infrastructure, Strategy"
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tag-color">Color</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="tag-color"
+                  type="color"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  className="w-20 h-10 cursor-pointer"
+                  required
+                />
+                <Input
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  placeholder="#6B7280"
+                  pattern="^#[0-9A-Fa-f]{6}$"
+                  required
+                />
+                <div
+                  className="w-10 h-10 rounded border"
+                  style={{ backgroundColor: formData.color }}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tag-description">Description (Optional)</Label>
+              <Textarea
+                id="tag-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Describe when to use this tag..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">{tag ? "Update Tag" : "Create Tag"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function TagCard({ tag, onEdit, onDelete }) {
+  return (
+    <Card className="group hover:shadow-md transition-all duration-200">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1">
+            <div
+              className="w-12 h-12 rounded-lg border-2 flex items-center justify-center"
+              style={{ borderColor: tag.color, backgroundColor: `${tag.color}20` }}
+            >
+              <Tag className="h-6 w-6" style={{ color: tag.color }} />
+            </div>
+            <div className="space-y-1 flex-1">
+              <h3 className="font-semibold text-base">{tag.name}</h3>
+              {tag.description && (
+                <p className="text-sm text-gray-600 line-clamp-2">{tag.description}</p>
+              )}
+              <Badge
+                variant="outline"
+                className="mt-2"
+                style={{ borderColor: tag.color, color: tag.color }}
+              >
+                {tag.color}
+              </Badge>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="opacity-0 group-hover:opacity-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(tag)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Tag
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onDelete(tag)} className="text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Tag
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function GoalsManagementPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isFreezeOpen, setIsFreezeOpen] = useState(false)
   const [isUnfreezeOpen, setIsUnfreezeOpen] = useState(false)
   const [isProgressOpen, setIsProgressOpen] = useState(false)
+  const [isTagFormOpen, setIsTagFormOpen] = useState(false)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState(null)
   const [updatingGoal, setUpdatingGoal] = useState(null)
+  const [viewingGoal, setViewingGoal] = useState(null)
+  const [editingTag, setEditingTag] = useState(null)
   const [activeTab, setActiveTab] = useState("goals")
   const [searchTerm, setSearchTerm] = useState("")
   const [yearFilter, setYearFilter] = useState("all")
   const [quarterFilter, setQuarterFilter] = useState("all")
+  const [tagFilter, setTagFilter] = useState("all")
 
   const { user } = useAuth()
   const canCreateYearly = usePermission("goal_create_yearly")
@@ -566,6 +853,7 @@ export default function GoalsManagementPage() {
   // All hooks must be called before any conditional returns
   const { data: goals = [], isLoading } = useGoals()
   const { data: freezeLogs = [] } = useGoalFreezeLogs()
+  const { data: tags = [], isLoading: isTagsLoading } = useGoalTags()
   const createMutation = useCreateGoal()
   const updateMutation = useUpdateGoal()
   const updateProgressMutation = useUpdateGoalProgress()
@@ -573,6 +861,11 @@ export default function GoalsManagementPage() {
   const deleteMutation = useDeleteGoal()
   const freezeMutation = useFreezeGoalsQuarter()
   const unfreezeMutation = useUnfreezeGoalsQuarter()
+  const freezeGoalMutation = useFreezeGoal()
+  const unfreezeGoalMutation = useUnfreezeGoal()
+  const createTagMutation = useCreateGoalTag()
+  const updateTagMutation = useUpdateGoalTag()
+  const deleteTagMutation = useDeleteGoalTag()
 
   // Filter organizational goals - must be called before any returns
   const organizationalGoals = useMemo(() => {
@@ -586,6 +879,12 @@ export default function GoalsManagementPage() {
       filtered = filtered.filter(g => g.quarter === quarterFilter)
     }
 
+    if (tagFilter !== "all") {
+      filtered = filtered.filter(g =>
+        g.tags && g.tags.some(tag => tag.id === tagFilter)
+      )
+    }
+
     if (searchTerm) {
       filtered = filtered.filter(g =>
         g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -594,7 +893,7 @@ export default function GoalsManagementPage() {
     }
 
     return filtered
-  }, [goals, yearFilter, quarterFilter, searchTerm])
+  }, [goals, yearFilter, quarterFilter, tagFilter, searchTerm])
 
   // Redirect if no permissions
   if (!canCreateOrganizationalGoals && !canFreezeGoals) {
@@ -689,6 +988,44 @@ export default function GoalsManagementPage() {
     })
   }
 
+  const handleTagCreate = (data) => {
+    createTagMutation.mutate(data)
+  }
+
+  const handleTagUpdate = (data) => {
+    if (editingTag) {
+      updateTagMutation.mutate({ id: editingTag.id, ...data })
+    }
+  }
+
+  const handleTagEdit = (tag) => {
+    setEditingTag(tag)
+    setIsTagFormOpen(true)
+  }
+
+  const handleTagDelete = (tag) => {
+    if (confirm(`Are you sure you want to delete the tag "${tag.name}"? This will remove the tag from all associated goals.`)) {
+      deleteTagMutation.mutate(tag.id)
+    }
+  }
+
+  const handleFreezeGoal = (goal) => {
+    if (confirm(`Are you sure you want to freeze "${goal.title}"? This will prevent any edits until unfrozen.`)) {
+      freezeGoalMutation.mutate({ id: goal.id })
+    }
+  }
+
+  const handleUnfreezeGoal = (goal) => {
+    if (confirm(`Are you sure you want to unfreeze "${goal.title}"? This will allow edits again.`)) {
+      unfreezeGoalMutation.mutate({ id: goal.id })
+    }
+  }
+
+  const handleViewDetails = (goal) => {
+    setViewingGoal(goal)
+    setIsDetailOpen(true)
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -705,10 +1042,14 @@ export default function GoalsManagementPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="goals" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
             Organizational Goals
+          </TabsTrigger>
+          <TabsTrigger value="tags" className="flex items-center gap-2">
+            <Tag className="h-4 w-4" />
+            Tags Management
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2">
             <History className="h-4 w-4" />
@@ -786,13 +1127,27 @@ export default function GoalsManagementPage() {
               className="w-[180px]"
             />
 
-            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all") && (
+            <SearchableSelect
+              value={tagFilter}
+              onValueChange={setTagFilter}
+              options={[
+                { value: "all", label: "All Tags" },
+                ...tags.map(tag => ({ value: tag.id, label: tag.name }))
+              ]}
+              placeholder="Filter by tag"
+              searchPlaceholder="Search tags..."
+              emptyText="No tags found."
+              className="w-[160px]"
+            />
+
+            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all" || tagFilter !== "all") && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("")
                   setYearFilter("all")
                   setQuarterFilter("all")
+                  setTagFilter("all")
                 }}
                 className="whitespace-nowrap"
               >
@@ -823,6 +1178,10 @@ export default function GoalsManagementPage() {
                       onDelete={handleDelete}
                       onUpdateProgress={handleUpdateProgressDialog}
                       onStatusChange={handleStatusChange}
+                      onFreeze={handleFreezeGoal}
+                      onUnfreeze={handleUnfreezeGoal}
+                      onViewDetails={handleViewDetails}
+                      canFreeze={canFreezeGoals}
                     />
                   ))}
                 </div>
@@ -837,6 +1196,58 @@ export default function GoalsManagementPage() {
                       Create Goal
                     </Button>
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tags Management Tab */}
+        <TabsContent value="tags" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Create and manage tags for categorizing goals
+            </p>
+            <Button onClick={() => setIsTagFormOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Tag
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Goal Tags ({tags.length})</CardTitle>
+              <CardDescription>
+                Tags help categorize and filter goals across the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isTagsLoading ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(6)].map((_, i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : tags.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {tags.map((tag) => (
+                    <TagCard
+                      key={tag.id}
+                      tag={tag}
+                      onEdit={handleTagEdit}
+                      onDelete={handleTagDelete}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Tag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No tags yet</h3>
+                  <p className="text-gray-600 mb-4">Create your first tag to start categorizing goals</p>
+                  <Button onClick={() => setIsTagFormOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Tag
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -941,6 +1352,200 @@ export default function GoalsManagementPage() {
         }}
         onSubmit={handleUpdateProgress}
       />
+
+      <TagManagementDialog
+        tag={editingTag}
+        isOpen={isTagFormOpen}
+        onClose={() => {
+          setIsTagFormOpen(false)
+          setEditingTag(null)
+        }}
+        onSubmit={editingTag ? handleTagUpdate : handleTagCreate}
+      />
+
+      {/* Goal Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={() => setIsDetailOpen(false)}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <DialogTitle className="text-2xl pr-8">{viewingGoal?.title}</DialogTitle>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={statusColors[viewingGoal?.status]}>
+                  {viewingGoal?.status}
+                </Badge>
+                <Badge className={typeColors[viewingGoal?.type]}>
+                  {viewingGoal?.type}
+                </Badge>
+                {viewingGoal?.quarter && viewingGoal?.year && (
+                  <Badge variant="outline">
+                    {viewingGoal.quarter} {viewingGoal.year}
+                  </Badge>
+                )}
+                {viewingGoal?.frozen && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Frozen
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Tags */}
+            {viewingGoal?.tags && viewingGoal.tags.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-gray-700">Tags</h3>
+                <div className="flex flex-wrap gap-2">
+                  {viewingGoal.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="text-sm px-3 py-1"
+                      style={{ borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}15` }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            {viewingGoal?.description && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-gray-700">Description</h3>
+                <div
+                  className="text-sm text-gray-600 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: viewingGoal.description }}
+                />
+              </div>
+            )}
+
+            {/* KPIs */}
+            {viewingGoal?.kpis && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-gray-700">Key Performance Indicators</h3>
+                <p className="text-sm text-gray-600">{viewingGoal.kpis}</p>
+              </div>
+            )}
+
+            {/* Progress */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-gray-700">Progress</h3>
+                <span className="text-sm font-semibold">{viewingGoal?.progress_percentage || 0}%</span>
+              </div>
+              <Progress value={viewingGoal?.progress_percentage || 0} className="h-2" />
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-4">
+              {viewingGoal?.start_date && (
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-sm text-gray-700">Start Date</h3>
+                  <p className="text-sm text-gray-600">
+                    {new Date(viewingGoal.start_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+              {viewingGoal?.end_date && (
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-sm text-gray-700">End Date</h3>
+                  <p className="text-sm text-gray-600">
+                    {new Date(viewingGoal.end_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Parent Goal */}
+            {viewingGoal?.parent_goal_id && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-gray-700 flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Parent Goal
+                </h3>
+                <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
+                  const parent = goals.find(g => g.id === viewingGoal.parent_goal_id)
+                  if (parent) {
+                    setViewingGoal(parent)
+                  }
+                }}>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-sm font-medium text-gray-900">
+                      {goals.find(g => g.id === viewingGoal.parent_goal_id)?.title || 'Unknown'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge className={typeColors[goals.find(g => g.id === viewingGoal.parent_goal_id)?.type]} variant="outline" className="text-xs">
+                        {goals.find(g => g.id === viewingGoal.parent_goal_id)?.type}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {goals.find(g => g.id === viewingGoal.parent_goal_id)?.progress_percentage || 0}% complete
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Child Goals */}
+            {goals.filter(g => g.parent_goal_id === viewingGoal?.id).length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-gray-700 flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Child Goals ({goals.filter(g => g.parent_goal_id === viewingGoal?.id).length})
+                </h3>
+                <div className="space-y-2">
+                  {goals.filter(g => g.parent_goal_id === viewingGoal?.id).map(child => (
+                    <Card
+                      key={child.id}
+                      className="border-l-4 border-l-green-500 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setViewingGoal(child)}
+                    >
+                      <CardContent className="pt-3 pb-3">
+                        <p className="text-sm font-medium text-gray-900">{child.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge className={statusColors[child.status]} variant="outline" className="text-xs">
+                            {child.status}
+                          </Badge>
+                          <Badge className={typeColors[child.type]} variant="outline" className="text-xs">
+                            {child.type}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {child.progress_percentage || 0}% complete
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Metadata */}
+            <div className="pt-4 border-t text-xs text-gray-500 space-y-1">
+              {viewingGoal?.created_at && (
+                <p>Created: {new Date(viewingGoal.created_at).toLocaleString()}</p>
+              )}
+              {viewingGoal?.updated_at && (
+                <p>Last Updated: {new Date(viewingGoal.updated_at).toLocaleString()}</p>
+              )}
+              {viewingGoal?.achieved_at && (
+                <p>Achieved: {new Date(viewingGoal.achieved_at).toLocaleString()}</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

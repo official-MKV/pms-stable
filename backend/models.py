@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, JSON, Enum, Date, Float, Numeric, UniqueConstraint, CheckConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, JSON, Enum, Date, Float, Numeric, UniqueConstraint, CheckConstraint, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -32,8 +32,8 @@ class UserStatus(str, enum.Enum):
 # Goal Enums
 class GoalType(str, enum.Enum):
     YEARLY = "YEARLY"
-    QUARTERLY = "QUARTERLY"
-    DEPARTMENTAL = "DEPARTMENTAL"  # NEW: Department/Directorate-specific goals
+    QUARTERLY = "QUARTERLY"  # Quarterly goals (kept for backward compatibility)
+    DEPARTMENTAL = "DEPARTMENTAL"  # Department/Directorate-specific goals
     INDIVIDUAL = "INDIVIDUAL"  # Individual employee goals
 
 class GoalStatus(str, enum.Enum):
@@ -256,7 +256,8 @@ class Goal(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     title = Column(String(255), nullable=False)
-    description = Column(Text)
+    description = Column(Text)  # Now supports rich text (HTML)
+    kpis = Column(Text, nullable=True)  # Key Performance Indicators
     type = Column(Enum(GoalType), nullable=False)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -296,6 +297,7 @@ class Goal(Base):
     organization = relationship("Organization")  # For DEPARTMENTAL goals
     progress_reports = relationship("GoalProgressReport", back_populates="goal")
     initiatives = relationship("Initiative", back_populates="goal")
+    tags = relationship("GoalTag", secondary="goal_tag_assignments", back_populates="goals")
 
 class GoalProgressReport(Base):
     """
@@ -1030,3 +1032,31 @@ class GoalFreezeLog(Base):
     __table_args__ = (
         CheckConstraint("action IN ('freeze', 'unfreeze')", name='valid_freeze_action'),
     )
+
+# Goal Tags/Labels - Association Table
+goal_tag_assignments = Table(
+    'goal_tag_assignments',
+    Base.metadata,
+    Column('goal_id', UUID(as_uuid=True), ForeignKey('goals.id', ondelete='CASCADE'), primary_key=True),
+    Column('tag_id', UUID(as_uuid=True), ForeignKey('goal_tags.id', ondelete='CASCADE'), primary_key=True),
+    Column('assigned_at', DateTime(timezone=True), server_default=func.now())
+)
+
+class GoalTag(Base):
+    """
+    Tags/Labels for categorizing goals (e.g., Infrastructure, Strategy)
+    Can be filtered and have custom colors
+    """
+    __tablename__ = "goal_tags"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    color = Column(String(7), nullable=False, default="#6B7280")  # Hex color code
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    creator = relationship("User")
+    goals = relationship("Goal", secondary="goal_tag_assignments", back_populates="tags")

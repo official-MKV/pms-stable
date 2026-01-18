@@ -146,7 +146,7 @@ function NavGroup({ title, items }) {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>{title}</SidebarGroupLabel>
+      <SidebarGroupLabel >{title}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {visibleItems.map((item) => {
@@ -162,7 +162,7 @@ function NavGroup({ title, items }) {
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   asChild
-                  className={isActive ? "bg-blue-800/20 text-black hover:bg-gray-800/30" : ""}
+                  className={isActive ? "bg-blue-800/20  font-bold hover:bg-gray-800/30" : "text-gray-500"}
                 >
                   <Link href={item.url}>
                     <item.icon className="h-4 w-4" />
@@ -201,9 +201,7 @@ export function AppSidebar() {
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-semibold">
-            N
-          </div>
+          
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold">Nigcomsat PMS</span>
             <span className="text-xs text-muted-foreground">Performance Management</span>

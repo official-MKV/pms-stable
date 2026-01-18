@@ -8,6 +8,7 @@ import {
   Italic,
   List,
   ListOrdered,
+  Heading1,
   Heading2,
   Heading3,
   Undo,
@@ -21,7 +22,7 @@ export function RichTextEditor({ content, onChange, placeholder = "Start typing.
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [2, 3],
+          levels: [1, 2, 3],
         },
       }),
       Placeholder.configure({
@@ -32,7 +33,7 @@ export function RichTextEditor({ content, onChange, placeholder = "Start typing.
     immediatelyRender: false, // Fix SSR hydration issues
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none min-h-[300px] focus:outline-none px-3 py-2',
+        class: 'prose prose-sm prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-ul:list-disc prose-ol:list-decimal prose-li:ml-4 max-w-none min-h-[300px] focus:outline-none px-3 py-2',
       },
     },
     onUpdate: ({ editor }) => {
@@ -75,6 +76,15 @@ export function RichTextEditor({ content, onChange, placeholder = "Start typing.
         </Toggle>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
+
+        <Toggle
+          size="sm"
+          pressed={editor.isActive('heading', { level: 1 })}
+          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          aria-label="Toggle heading 1"
+        >
+          <Heading1 className="h-4 w-4" />
+        </Toggle>
 
         <Toggle
           size="sm"

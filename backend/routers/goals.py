@@ -132,7 +132,38 @@ async def get_supervisees_goals(
         Goal.owner_id.in_(supervisee_ids)
     ).all()
 
-    return [GoalSchema.from_orm(goal) for goal in goals]
+    # Manually populate owner_name, creator_name, and other user names for each goal
+    goal_responses = []
+    for goal in goals:
+        goal_dict = GoalSchema.from_orm(goal).dict()
+
+        # Add owner name
+        if goal.owner_id:
+            owner = db.query(User).filter(User.id == goal.owner_id).first()
+            goal_dict['owner_name'] = owner.name if owner else None
+
+        # Add creator name
+        if goal.created_by:
+            creator = db.query(User).filter(User.id == goal.created_by).first()
+            goal_dict['creator_name'] = creator.name if creator else None
+
+        # Add approver name
+        if goal.approved_by:
+            approver = db.query(User).filter(User.id == goal.approved_by).first()
+            goal_dict['approver_name'] = approver.name if approver else None
+
+        # Add parent goal title
+        if goal.parent_goal_id:
+            parent = db.query(Goal).filter(Goal.id == goal.parent_goal_id).first()
+            goal_dict['parent_goal_title'] = parent.title if parent else None
+
+        # Add child count
+        child_count = db.query(Goal).filter(Goal.parent_goal_id == goal.id).count()
+        goal_dict['child_count'] = child_count
+
+        goal_responses.append(GoalSchema(**goal_dict))
+
+    return goal_responses
 
 @router.get("/stats", response_model=GoalStats)
 async def get_goal_stats(
@@ -684,6 +715,7 @@ async def create_goal(
     goal = Goal(
         title=goal_data.title,
         description=goal_data.description,
+        kpis=goal_data.kpis,
         type=goal_data.type,
         start_date=goal_data.start_date,
         end_date=goal_data.end_date,
@@ -699,6 +731,16 @@ async def create_goal(
     db.add(goal)
     db.commit()
     db.refresh(goal)
+
+    # Add tags if provided
+    if goal_data.tag_ids:
+        from models import GoalTag
+        for tag_id in goal_data.tag_ids:
+            tag = db.query(GoalTag).filter(GoalTag.id == tag_id).first()
+            if tag:
+                goal.tags.append(tag)
+        db.commit()
+        db.refresh(goal)
 
     # Send notification if individual goal created (requires approval)
     if goal.type == GoalType.INDIVIDUAL and user.supervisor_id:
@@ -773,8 +815,23 @@ async def update_goal(
 
     # Update fields
     update_data = goal_data.dict(exclude_unset=True)
+
+    # Handle tags separately (relationship field)
+    tag_ids = update_data.pop('tag_ids', None)
+
     for field, value in update_data.items():
         setattr(goal, field, value)
+
+    # Update tags if provided
+    if tag_ids is not None:
+        from models import GoalTag
+        # Clear existing tags
+        goal.tags.clear()
+        # Add new tags
+        for tag_id in tag_ids:
+            tag = db.query(GoalTag).filter(GoalTag.id == tag_id).first()
+            if tag:
+                goal.tags.append(tag)
 
     db.commit()
     db.refresh(goal)
@@ -1083,3 +1140,85 @@ async def delete_goal(
     db.commit()
 
     return {"message": "Goal deleted successfully"}
+
+
+@router.post("/{goal_id}/freeze")
+async def freeze_goal(
+    goal_id: uuid.UUID,
+    reason: str = None,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    permission_service: UserPermissions = Depends(get_permission_service)
+):
+    """
+    Freeze an individual goal to prevent editing
+    Requires goal_freeze permission
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not permission_service.user_has_permission(user, "goal_freeze"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions to freeze goals")
+
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    if goal.frozen:
+        raise HTTPException(status_code=400, detail="Goal is already frozen")
+
+    # Freeze the goal
+    goal.frozen = True
+    goal.frozen_at = datetime.now()
+    goal.frozen_by = user.id
+
+    db.commit()
+    db.refresh(goal)
+
+    return {
+        "message": "Goal frozen successfully",
+        "goal_id": str(goal_id),
+        "frozen_at": goal.frozen_at,
+        "frozen_by": str(user.id)
+    }
+
+
+@router.post("/{goal_id}/unfreeze")
+async def unfreeze_goal(
+    goal_id: uuid.UUID,
+    reason: str = None,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    permission_service: UserPermissions = Depends(get_permission_service)
+):
+    """
+    Unfreeze a goal to allow editing again
+    Requires goal_freeze permission
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not permission_service.user_has_permission(user, "goal_freeze"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions to unfreeze goals")
+
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    if not goal.frozen:
+        raise HTTPException(status_code=400, detail="Goal is not frozen")
+
+    # Unfreeze the goal
+    goal.frozen = False
+    goal.frozen_at = None
+    goal.frozen_by = None
+
+    db.commit()
+    db.refresh(goal)
+
+    return {
+        "message": "Goal unfrozen successfully",
+        "goal_id": str(goal_id)
+    }

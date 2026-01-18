@@ -1045,6 +1045,65 @@ export const goals = {
    */
   async requestChange(id, changeRequest) {
     return PUT(`/api/goals/${id}/request-change`, { change_request: changeRequest })
+  },
+
+  /**
+   * Freeze an individual goal
+   * @param {string} id - Goal ID
+   * @param {string} reason - Reason for freezing (optional)
+   * @returns {Promise<Object>} Freeze operation result
+   */
+  async freezeGoal(id, reason = null) {
+    return POST(`/api/goals/${id}/freeze`, { reason })
+  },
+
+  /**
+   * Unfreeze an individual goal
+   * @param {string} id - Goal ID
+   * @param {string} reason - Reason for unfreezing (optional)
+   * @returns {Promise<Object>} Unfreeze operation result
+   */
+  async unfreezeGoal(id, reason = null) {
+    return POST(`/api/goals/${id}/unfreeze`, { reason })
+  }
+}
+
+// Goal Tags/Labels API endpoints
+export const goalTags = {
+  /**
+   * Get all goal tags
+   * @returns {Promise<Array>} List of tags
+   */
+  async list() {
+    return GET('/api/goal-tags')
+  },
+
+  /**
+   * Create a new goal tag
+   * @param {Object} tag - Tag data {name, color, description}
+   * @returns {Promise<Object>} Created tag data
+   */
+  async create(tag) {
+    return POST('/api/goal-tags', tag)
+  },
+
+  /**
+   * Update a goal tag
+   * @param {string} id - Tag ID
+   * @param {Object} tag - Updated tag data
+   * @returns {Promise<Object>} Updated tag data
+   */
+  async update(id, tag) {
+    return PUT(`/api/goal-tags/${id}`, tag)
+  },
+
+  /**
+   * Delete a goal tag
+   * @param {string} id - Tag ID
+   * @returns {Promise<Object>} Deletion response
+   */
+  async delete(id) {
+    return DELETE(`/api/goal-tags/${id}`)
   }
 }
 

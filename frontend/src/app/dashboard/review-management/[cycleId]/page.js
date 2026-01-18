@@ -102,6 +102,17 @@ export default function ReviewCycleDetailPage() {
     }
   }, [cycleId])
 
+  const syncTraits = async () => {
+    try {
+      const result = await POST(`/api/reviews/cycles/${cycleId}/sync-traits`, {})
+      toast.success(`Successfully synced traits! ${result.new_traits_linked} new trait(s) linked.`)
+      fetchCycleDetails() // Refresh the data
+    } catch (error) {
+      console.error('Error syncing traits:', error)
+      toast.error(error.message || 'Failed to sync traits')
+    }
+  }
+
   useEffect(() => {
     if (cycleId) {
       fetchCycleDetails()
@@ -281,9 +292,18 @@ export default function ReviewCycleDetailPage() {
                 Configure questions for each review type. All company traits are included by default.
               </CardDescription>
             </div>
-            {cycle.status === 'draft' && (
-              <Badge className="bg-amber-100 text-amber-800">Draft - Configure Questions</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={syncTraits}
+              >
+                Sync Traits
+              </Button>
+              {cycle.status === 'draft' && (
+                <Badge className="bg-amber-100 text-amber-800">Draft - Configure Questions</Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>

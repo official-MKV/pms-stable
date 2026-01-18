@@ -67,7 +67,8 @@ import {
   useRespondToGoal,
   useRequestGoalChange,
   useUsers,
-  useOrganizations
+  useOrganizations,
+  useGoalTags
 } from "@/lib/react-query"
 
 const statusColors = {
@@ -131,20 +132,20 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
               )}
             </div>
             {/* Show owner name for team goals */}
-            {isTeamGoal && goal.owner_name && (
+            {/* {isTeamGoal && goal.owner_name && (
               <div className="flex items-center gap-1.5 text-sm text-gray-600">
                 <User className="h-3.5 w-3.5" />
                 <span>{goal.owner_name}</span>
               </div>
-            )}
+            )} */}
             {/* Show assigned to for goals assigned to supervisees */}
-            {isAssignedByOther && goal.owner_name && (
+            {/* {isAssignedByOther && goal.owner_name && (
               <div className="flex items-center gap-1.5 mt-1">
                 <Badge variant="outline" className="text-xs">
                   Assigned to: {goal.owner_name}
                 </Badge>
               </div>
-            )}
+            )} */}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -234,7 +235,27 @@ function GoalCard({ goal, onEdit, onDelete, onUpdateProgress, onStatusChange, on
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-gray-600 line-clamp-2">{goal.description}</p>
+        {goal.description && (
+          <div
+            className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: goal.description }}
+          />
+        )}
+
+        {goal.tags && goal.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {goal.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className="text-xs"
+                style={{ borderColor: tag.color, color: tag.color }}
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -435,7 +456,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
             {/* Goal Type Selection */}
             {availableTypes.length > 1 && !goal && (
               <div className="grid gap-2">
-                <Label htmlFor="type">Goal Type *</Label>
+                <Label htmlFor="type">Goal Type <span className="text-red-500">*</span></Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value, organization_id: "", parent_goal_id: "" })}
@@ -457,7 +478,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
             {/* Organization Selector (for DEPARTMENTAL goals only) */}
             {formData.type === "DEPARTMENTAL" && (
               <div className="grid gap-2">
-                <Label htmlFor="organization">Department/Directorate *</Label>
+                <Label htmlFor="organization">Department/Directorate <span className="text-red-500">*</span></Label>
                 {scopedOrganizations.length === 1 ? (
                   <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
                     <p className="text-sm font-medium text-blue-900">
@@ -485,7 +506,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor="title">Goal Title *</Label>
+              <Label htmlFor="title">Goal Title <span className="text-red-500">*</span></Label>
               <Input
                 id="title"
                 value={formData.title}
@@ -506,27 +527,29 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="quarter">Quarter *</Label>
-                <Select
-                  value={formData.quarter}
-                  onValueChange={(value) => setFormData({ ...formData, quarter: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Q1">Q1 (Jan-Mar)</SelectItem>
-                    <SelectItem value="Q2">Q2 (Apr-Jun)</SelectItem>
-                    <SelectItem value="Q3">Q3 (Jul-Sep)</SelectItem>
-                    <SelectItem value="Q4">Q4 (Oct-Dec)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className={`grid gap-4 ${formData.type === "YEARLY" ? "grid-cols-1" : "grid-cols-2"}`}>
+              {formData.type !== "YEARLY" && (
+                <div className="grid gap-2">
+                  <Label htmlFor="quarter">Quarter <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={formData.quarter}
+                    onValueChange={(value) => setFormData({ ...formData, quarter: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Q1">Q1 (Jan-Mar)</SelectItem>
+                      <SelectItem value="Q2">Q2 (Apr-Jun)</SelectItem>
+                      <SelectItem value="Q3">Q3 (Jul-Sep)</SelectItem>
+                      <SelectItem value="Q4">Q4 (Oct-Dec)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="grid gap-2">
-                <Label htmlFor="year">Year *</Label>
+                <Label htmlFor="year">Year <span className="text-red-500">*</span></Label>
                 <Input
                   id="year"
                   type="number"
@@ -686,7 +709,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
 
             {createForSupervisee && (
               <div className="grid gap-2">
-                <Label htmlFor="supervisee">Select Team Member *</Label>
+                <Label htmlFor="supervisee">Select Team Member <span className="text-red-500">*</span></Label>
                 <Select
                   value={formData.supervisee_id}
                   onValueChange={(value) => setFormData({ ...formData, supervisee_id: value })}
@@ -717,7 +740,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor="title">Goal Title *</Label>
+              <Label htmlFor="title">Goal Title <span className="text-red-500">*</span></Label>
               <Input
                 id="title"
                 value={formData.title}
@@ -740,7 +763,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="quarter">Quarter *</Label>
+                <Label htmlFor="quarter">Quarter <span className="text-red-500">*</span></Label>
                 <Select
                   value={formData.quarter}
                   onValueChange={(value) => setFormData({ ...formData, quarter: value })}
@@ -758,7 +781,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="year">Year *</Label>
+                <Label htmlFor="year">Year <span className="text-red-500">*</span></Label>
                 <Input
                   id="year"
                   type="number"
@@ -866,7 +889,7 @@ function ProgressUpdateDialog({ goal, isOpen, onClose, onSubmit }) {
             </div>
 
             <div className="grid gap-3">
-              <Label htmlFor="report">Progress Report *</Label>
+              <Label htmlFor="report">Progress Report <span className="text-red-500">*</span></Label>
               <Textarea
                 id="report"
                 value={formData.report}
@@ -1123,11 +1146,40 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor, super
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          
+
+          {/* Tags */}
+          {goal.tags && goal.tags.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-gray-700">Tags</h3>
+              <div className="flex flex-wrap gap-2">
+                {goal.tags.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className="text-sm px-3 py-1"
+                    style={{ borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}15` }}
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {goal.description && (
             <div className="space-y-2">
               <h3 className="font-semibold text-sm text-gray-700">Description</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{goal.description}</p>
+              <div
+                className="text-sm text-gray-600 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: goal.description }}
+              />
+            </div>
+          )}
+
+          {goal.kpis && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-gray-700">Key Performance Indicators</h3>
+              <p className="text-sm text-gray-600">{goal.kpis}</p>
             </div>
           )}
 
@@ -1280,6 +1332,8 @@ export default function GoalsPage() {
   const [yearFilter, setYearFilter] = useState("all")
   const [quarterFilter, setQuarterFilter] = useState("all")
   const [superviseeFilter, setSuperviseeFilter] = useState("all")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
+  const [tagFilter, setTagFilter] = useState("all")
 
   const { user } = useAuth()
   const canEditGoals = usePermission("goal_edit")
@@ -1293,6 +1347,7 @@ export default function GoalsPage() {
   const { data: superviseeGoals = [], refetch: refetchSuperviseeGoals } = useSuperviseeGoals()
   const { data: users = [], isLoading: isLoadingUsers } = useUsers()
   const { data: organizations = [] } = useOrganizations()
+  const { data: tags = [] } = useGoalTags()
 
   // Refetch supervisee goals when switching to team tab
   useEffect(() => {
@@ -1317,7 +1372,8 @@ export default function GoalsPage() {
     return users.filter(u => u.supervisor_id === user.user_id)
   }, [users, user?.user_id])
 
-  const isSupervisor = supervisees.length > 0
+  // Consider user a supervisor if they have supervisees OR have supervisee goals
+  const isSupervisor = supervisees.length > 0 || superviseeGoals.length > 0
 
   // Get unique years from goals for filter
   const availableYears = useMemo(() => {
@@ -1346,6 +1402,34 @@ export default function GoalsPage() {
     ...supervisees.map(s => ({ value: s.id, label: s.name }))
   ]
 
+  const tagOptions = useMemo(() => {
+    return [
+      { value: "all", label: "All Tags" },
+      ...tags.map(tag => ({ value: tag.id, label: tag.name }))
+    ]
+  }, [tags])
+
+  const departmentOptions = useMemo(() => {
+    const deptOrgs = organizations.filter(org =>
+      org.level === 'DEPARTMENT' || org.level === 'department' ||
+      org.level === 'DIRECTORATE' || org.level === 'directorate'
+    )
+    return [
+      { value: "all", label: "All Departments" },
+      ...deptOrgs.map(org => ({ value: org.id, label: org.name }))
+    ]
+  }, [organizations])
+
+  // Helper function for tag filtering
+  const applyTagFilter = (filtered) => {
+    if (tagFilter !== "all") {
+      filtered = filtered.filter(g =>
+        g.tags && g.tags.some(tag => tag.id === tagFilter)
+      )
+    }
+    return filtered
+  }
+
   // Filter goals by type, year, quarter, and search term
   const organizationalGoals = useMemo(() => {
     let filtered = goals.filter(g => g.type === "YEARLY" || g.type === "QUARTERLY")
@@ -1365,11 +1449,17 @@ export default function GoalsPage() {
       )
     }
 
+    filtered = applyTagFilter(filtered)
+
     return filtered
-  }, [goals, yearFilter, quarterFilter, searchTerm])
+  }, [goals, yearFilter, quarterFilter, searchTerm, tagFilter])
 
   const departmentalGoals = useMemo(() => {
     let filtered = goals.filter(g => g.type === "DEPARTMENTAL")
+
+    if (departmentFilter !== "all") {
+      filtered = filtered.filter(g => g.organization_id === departmentFilter)
+    }
 
     if (yearFilter !== "all") {
       filtered = filtered.filter(g => g.year?.toString() === yearFilter)
@@ -1386,8 +1476,10 @@ export default function GoalsPage() {
       )
     }
 
+    filtered = applyTagFilter(filtered)
+
     return filtered
-  }, [goals, yearFilter, quarterFilter, searchTerm])
+  }, [goals, departmentFilter, yearFilter, quarterFilter, searchTerm, tagFilter])
 
   const myIndividualGoals = useMemo(() => {
     let filtered = goals.filter(g => g.type === "INDIVIDUAL" && g.owner_id === user?.user_id)
@@ -1407,8 +1499,34 @@ export default function GoalsPage() {
       )
     }
 
+    filtered = applyTagFilter(filtered)
+
     return filtered
-  }, [goals, user, yearFilter, quarterFilter, searchTerm])
+  }, [goals, user, yearFilter, quarterFilter, searchTerm, tagFilter])
+
+  // All goals combined
+  const allGoals = useMemo(() => {
+    let filtered = [...goals]
+
+    if (yearFilter !== "all") {
+      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
+    }
+
+    if (quarterFilter !== "all") {
+      filtered = filtered.filter(g => g.quarter === quarterFilter)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(g =>
+        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    filtered = applyTagFilter(filtered)
+
+    return filtered
+  }, [goals, yearFilter, quarterFilter, searchTerm, tagFilter])
 
   // Filtered supervisee goals
   const filteredSuperviseeGoals = useMemo(() => {
@@ -1607,7 +1725,7 @@ export default function GoalsPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full max-w-3xl ${isSupervisor ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full max-w-4xl ${isSupervisor ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="organizational" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Organizational
@@ -1617,13 +1735,13 @@ export default function GoalsPage() {
             Departmental
           </TabsTrigger>
           <TabsTrigger value="my" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
+            <User className="h-4 w-4" />
             My Goals
           </TabsTrigger>
           {isSupervisor && (
             <TabsTrigger value="team" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Supervisee Goals
+              Team Goals
             </TabsTrigger>
           )}
         </TabsList>
@@ -1677,13 +1795,27 @@ export default function GoalsPage() {
               className="w-[180px]"
             />
 
-            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all") && (
+            <SearchableSelect
+              value={tagFilter}
+              onValueChange={setTagFilter}
+              options={[
+                { value: "all", label: "All Tags" },
+                ...tags.map(tag => ({ value: tag.id, label: tag.name }))
+              ]}
+              placeholder="Filter by tag"
+              searchPlaceholder="Search tags..."
+              emptyText="No tags found."
+              className="w-[160px]"
+            />
+
+            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all" || tagFilter !== "all") && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("")
                   setYearFilter("all")
                   setQuarterFilter("all")
+                  setTagFilter("all")
                 }}
                 className="whitespace-nowrap"
               >
@@ -1777,6 +1909,16 @@ export default function GoalsPage() {
             </div>
 
             <SearchableSelect
+              value={departmentFilter}
+              onValueChange={setDepartmentFilter}
+              options={departmentOptions}
+              placeholder="Filter by department"
+              searchPlaceholder="Search department..."
+              emptyText="No departments found."
+              className="w-[200px]"
+            />
+
+            <SearchableSelect
               value={yearFilter}
               onValueChange={setYearFilter}
               options={yearOptions}
@@ -1796,13 +1938,28 @@ export default function GoalsPage() {
               className="w-[180px]"
             />
 
-            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all") && (
+            <SearchableSelect
+              value={tagFilter}
+              onValueChange={setTagFilter}
+              options={[
+                { value: "all", label: "All Tags" },
+                ...tags.map(tag => ({ value: tag.id, label: tag.name }))
+              ]}
+              placeholder="Filter by tag"
+              searchPlaceholder="Search tags..."
+              emptyText="No tags found."
+              className="w-[160px]"
+            />
+
+            {(searchTerm || departmentFilter !== "all" || yearFilter !== "all" || quarterFilter !== "all" || tagFilter !== "all") && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("")
+                  setDepartmentFilter("all")
                   setYearFilter("all")
                   setQuarterFilter("all")
+                  setTagFilter("all")
                 }}
                 className="whitespace-nowrap"
               >
@@ -1910,13 +2067,27 @@ export default function GoalsPage() {
               className="w-[180px]"
             />
 
-            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all") && (
+            <SearchableSelect
+              value={tagFilter}
+              onValueChange={setTagFilter}
+              options={[
+                { value: "all", label: "All Tags" },
+                ...tags.map(tag => ({ value: tag.id, label: tag.name }))
+              ]}
+              placeholder="Filter by tag"
+              searchPlaceholder="Search tags..."
+              emptyText="No tags found."
+              className="w-[160px]"
+            />
+
+            {(searchTerm || yearFilter !== "all" || quarterFilter !== "all" || tagFilter !== "all") && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("")
                   setYearFilter("all")
                   setQuarterFilter("all")
+                  setTagFilter("all")
                 }}
                 className="whitespace-nowrap"
               >
@@ -2020,7 +2191,20 @@ export default function GoalsPage() {
                 className="w-[220px]"
               />
 
-              {(searchTerm || yearFilter !== "all" || quarterFilter !== "all" || superviseeFilter !== "all") && (
+              <SearchableSelect
+                value={tagFilter}
+                onValueChange={setTagFilter}
+                options={[
+                  { value: "all", label: "All Tags" },
+                  ...tags.map(tag => ({ value: tag.id, label: tag.name }))
+                ]}
+                placeholder="Filter by tag"
+                searchPlaceholder="Search tags..."
+                emptyText="No tags found."
+                className="w-[160px]"
+              />
+
+              {(searchTerm || yearFilter !== "all" || quarterFilter !== "all" || superviseeFilter !== "all" || tagFilter !== "all") && (
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -2028,6 +2212,7 @@ export default function GoalsPage() {
                     setYearFilter("all")
                     setQuarterFilter("all")
                     setSuperviseeFilter("all")
+                    setTagFilter("all")
                   }}
                   className="whitespace-nowrap"
                 >

@@ -93,7 +93,7 @@ export { queryClient }
 
 // Custom hooks for API calls
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { auth, users, organizations, roles, goals, initiatives, tasks, notifications } from './api'
+import { auth, users, organizations, roles, goals, goalTags, initiatives, tasks, notifications } from './api'
 
 // Query keys
 export const QUERY_KEYS = {
@@ -534,6 +534,77 @@ export function useRequestGoalChange() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOALS })
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOAL(variables.id) })
       toast.success('Change request submitted successfully')
+    },
+  })
+}
+
+export function useFreezeGoal() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, reason }) => goals.freezeGoal(id, reason),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOALS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOAL(variables.id) })
+      toast.success('Goal frozen successfully')
+    },
+  })
+}
+
+export function useUnfreezeGoal() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, reason }) => goals.unfreezeGoal(id, reason),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOALS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOAL(variables.id) })
+      toast.success('Goal unfrozen successfully')
+    },
+  })
+}
+
+// Goal Tags hooks
+export function useGoalTags() {
+  return useQuery({
+    queryKey: ['goal-tags'],
+    queryFn: goalTags.list,
+  })
+}
+
+export function useCreateGoalTag() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: goalTags.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goal-tags'] })
+      toast.success('Tag created successfully')
+    },
+  })
+}
+
+export function useUpdateGoalTag() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, ...tag }) => goalTags.update(id, tag),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goal-tags'] })
+      toast.success('Tag updated successfully')
+    },
+  })
+}
+
+export function useDeleteGoalTag() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: goalTags.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goal-tags'] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GOALS })
+      toast.success('Tag deleted successfully')
     },
   })
 }
