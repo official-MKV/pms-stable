@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 
 from database import get_db
-from models import Goal, GoalType, GoalStatus, User, Quarter, GoalFreezeLog, Organization
+from models import Goal, GoalScope, GoalType, GoalStatus, User, Quarter, GoalFreezeLog, Organization
 from schemas.goals import (
     GoalCreate, GoalUpdate, GoalProgressUpdate, GoalStatusUpdate,
     Goal as GoalSchema, GoalWithChildren, GoalProgressReport, GoalList, GoalStats,
@@ -74,8 +74,8 @@ async def get_goals(
         accessible_org_ids = permission_service.get_accessible_organizations(user)
 
         visibility_filter = or_(
-            Goal.type.in_([GoalType.YEARLY, GoalType.QUARTERLY]),  # All organizational goals
-            (Goal.type == GoalType.DEPARTMENTAL) & (Goal.organization_id.in_(accessible_org_ids)),  # Departmental goals in accessible orgs
+            Goal.scope == GoalScope.COMPANY_WIDE,  # All company-wide goals (yearly or quarterly)
+            (Goal.scope == GoalScope.DEPARTMENTAL) & (Goal.organization_id.in_(accessible_org_ids)),  # Departmental goals in accessible orgs
             Goal.owner_id == user.id,  # Individual goals owned by user
             Goal.owner_id.in_(supervisee_ids_subquery),  # Individual goals owned by supervisees
             Goal.created_by == user.id  # Goals created by user
@@ -128,7 +128,7 @@ async def get_supervisees_goals(
 
     # Get all individual goals owned by supervisees
     goals = db.query(Goal).filter(
-        Goal.type == GoalType.INDIVIDUAL,
+        Goal.scope == GoalScope.INDIVIDUAL,
         Goal.owner_id.in_(supervisee_ids)
     ).all()
 
@@ -243,7 +243,7 @@ async def freeze_goals_for_quarter(
 
     # Get all individual goals for the specified quarter and year
     goals = db.query(Goal).filter(
-        Goal.type == GoalType.INDIVIDUAL,
+        Goal.scope == GoalScope.INDIVIDUAL,
         Goal.quarter == freeze_request.quarter,
         Goal.year == freeze_request.year,
         Goal.frozen == False  # Only freeze goals that aren't already frozen
@@ -332,7 +332,7 @@ async def unfreeze_goals_for_quarter(
 
     # Get all frozen individual goals for the specified quarter and year
     goals = db.query(Goal).filter(
-        Goal.type == GoalType.INDIVIDUAL,
+        Goal.scope == GoalScope.INDIVIDUAL,
         Goal.quarter == unfreeze_request.quarter,
         Goal.year == unfreeze_request.year,
         Goal.frozen == True  # Only unfreeze goals that are currently frozen
@@ -452,7 +452,7 @@ async def create_goal_for_supervisee(
 ):
     """
     Supervisor creates a goal for their supervisee
-    Goal starts as PENDING_APPROVAL and requires supervisee acceptance
+    Goal starts as ACTIVE and can be worked on immediately
     """
     user = db.query(User).filter(User.id == current_user.user_id).first()
     if not user:
@@ -471,7 +471,7 @@ async def create_goal_for_supervisee(
         )
 
     # Only individual goals can be created for supervisees
-    if goal_data.type != GoalType.INDIVIDUAL:
+    if goal_data.scope != GoalScope.INDIVIDUAL:
         raise HTTPException(
             status_code=400,
             detail="Only individual goals can be created for supervisees"
@@ -496,7 +496,7 @@ async def create_goal_for_supervisee(
         parent_goal_id=goal_data.parent_goal_id,
         created_by=user.id,
         owner_id=supervisee_id,  # Supervisee is the owner
-        status=GoalStatus.PENDING_APPROVAL  # Requires supervisee acceptance
+        status=GoalStatus.ACTIVE  # No approval needed
     )
 
     db.add(goal)
@@ -509,7 +509,7 @@ async def create_goal_for_supervisee(
         goal_id=goal.id,
         assigned_by=user.id,
         assigned_to=supervisee_id,
-        status=GoalStatus.PENDING_APPROVAL
+        status=GoalStatus.ACTIVE
     )
     db.add(assignment)
     db.commit()
@@ -661,27 +661,34 @@ async def create_goal(
     goal_service: GoalCascadeService = Depends(get_goal_service)
 ):
     """
-    Create new goal with permission gating by type
-    - YEARLY/QUARTERLY: Company-wide organizational goals (requires goal_create_yearly/quarterly permission)
+    Create new goal with permission gating by scope
+    - COMPANY_WIDE: Company-wide organizational goals (requires goal_create_yearly/quarterly permission based on type)
     - DEPARTMENTAL: Department/Directorate-specific goals (requires goal_create_departmental permission)
-    - INDIVIDUAL: Personal employee goals (no special permission required, starts as PENDING_APPROVAL)
+    - INDIVIDUAL: Personal employee goals (no special permission required, starts as ACTIVE)
     """
 
     user = db.query(User).filter(User.id == current_user.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Determine initial status based on goal type
-    initial_status = GoalStatus.PENDING_APPROVAL if goal_data.type == GoalType.INDIVIDUAL else GoalStatus.ACTIVE
+    # All goals start as ACTIVE (no approval needed)
+    initial_status = GoalStatus.ACTIVE
 
-    # Check permission based on goal type (individual goals don't need special permission)
-    if goal_data.type != GoalType.INDIVIDUAL:
-        required_permission = f"goal_create_{goal_data.type.value.lower()}"
+    # Check permission based on goal scope (individual goals don't need special permission)
+    if goal_data.scope != GoalScope.INDIVIDUAL:
+        # For non-individual goals, check if user has permission for that scope
+        if goal_data.scope == GoalScope.COMPANY_WIDE:
+            # Company-wide goals need yearly or quarterly permission depending on type
+            required_permission = f"goal_create_{goal_data.type.value.lower()}"
+        else:
+            # Departmental goals need departmental permission
+            required_permission = "goal_create_departmental"
+
         if not permission_service.user_has_permission(user, required_permission):
             raise HTTPException(status_code=403, detail=f"Missing permission: {required_permission}")
 
     # Validate departmental goal requirements
-    if goal_data.type == GoalType.DEPARTMENTAL:
+    if goal_data.scope == GoalScope.DEPARTMENTAL:
         if not goal_data.organization_id:
             raise HTTPException(status_code=400, detail="Organization ID is required for departmental goals")
 
@@ -700,22 +707,23 @@ async def create_goal(
             raise HTTPException(status_code=404, detail="Parent goal not found")
 
         # Validate relationship using cascade service
-        temp_goal = Goal(**goal_data.dict(exclude={'parent_goal_id'}))
+        temp_goal = Goal(**goal_data.dict(exclude={'parent_goal_id', 'tag_ids', 'owner_id'}))
         if not goal_service.validate_goal_relationship(goal_data.parent_goal_id, temp_goal):
             raise HTTPException(status_code=400, detail="Invalid parent-child goal relationship")
 
-    # Validate individual goal requirements
-    if goal_data.type == GoalType.INDIVIDUAL:
+    # Validate quarterly goal requirements (quarter and year needed for all quarterly goals)
+    if goal_data.type == GoalType.QUARTERLY:
         if not goal_data.quarter:
-            raise HTTPException(status_code=400, detail="Quarter is required for individual goals")
+            raise HTTPException(status_code=400, detail="Quarter is required for quarterly goals")
         if not goal_data.year:
-            raise HTTPException(status_code=400, detail="Year is required for individual goals")
+            raise HTTPException(status_code=400, detail="Year is required for quarterly goals")
 
     # Create goal
     goal = Goal(
         title=goal_data.title,
         description=goal_data.description,
         kpis=goal_data.kpis,
+        scope=goal_data.scope,
         type=goal_data.type,
         start_date=goal_data.start_date,
         end_date=goal_data.end_date,
@@ -724,7 +732,7 @@ async def create_goal(
         parent_goal_id=goal_data.parent_goal_id,
         created_by=user.id,
         owner_id=goal_data.owner_id if goal_data.owner_id else user.id,  # Default to creator as owner
-        organization_id=goal_data.organization_id,  # For DEPARTMENTAL goals
+        organization_id=goal_data.organization_id,  # For DEPARTMENTAL scope goals
         status=initial_status
     )
 
@@ -742,8 +750,8 @@ async def create_goal(
         db.commit()
         db.refresh(goal)
 
-    # Send notification if individual goal created (requires approval)
-    if goal.type == GoalType.INDIVIDUAL and user.supervisor_id:
+    # Send notification if individual goal created (for supervisor awareness)
+    if goal.scope == GoalScope.INDIVIDUAL and user.supervisor_id:
         try:
             notification_service = NotificationService(db)
             notification_service.notify_goal_created(goal, user)
@@ -1030,8 +1038,8 @@ async def approve_goal(
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    # Validate goal type
-    if goal.type != GoalType.INDIVIDUAL:
+    # Validate goal scope
+    if goal.scope != GoalScope.INDIVIDUAL:
         raise HTTPException(
             status_code=400,
             detail="Only INDIVIDUAL goals require approval"

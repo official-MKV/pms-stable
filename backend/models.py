@@ -30,11 +30,14 @@ class UserStatus(str, enum.Enum):
     ARCHIVED = "ARCHIVED"
 
 # Goal Enums
-class GoalType(str, enum.Enum):
-    YEARLY = "YEARLY"
-    QUARTERLY = "QUARTERLY"  # Quarterly goals (kept for backward compatibility)
+class GoalScope(str, enum.Enum):
+    COMPANY_WIDE = "COMPANY_WIDE"  # Organizational-level goals
     DEPARTMENTAL = "DEPARTMENTAL"  # Department/Directorate-specific goals
     INDIVIDUAL = "INDIVIDUAL"  # Individual employee goals
+
+class GoalType(str, enum.Enum):
+    YEARLY = "YEARLY"
+    QUARTERLY = "QUARTERLY"
 
 class GoalStatus(str, enum.Enum):
     PENDING_APPROVAL = "PENDING_APPROVAL"  # Individual goals awaiting approval
@@ -249,8 +252,9 @@ class Goal(Base):
     """
     Hierarchical goal management with cascading achievement
     Supports:
-    - YEARLY/QUARTERLY: Company-wide organizational goals
-    - INDIVIDUAL: Personal employee goals requiring approval
+    - Scope: COMPANY_WIDE (organizational), DEPARTMENTAL (specific dept/directorate), INDIVIDUAL (employee)
+    - Type: YEARLY, QUARTERLY
+    Goals can be any combination (e.g., DEPARTMENTAL + YEARLY, INDIVIDUAL + QUARTERLY)
     """
     __tablename__ = "goals"
 
@@ -258,20 +262,21 @@ class Goal(Base):
     title = Column(String(1000), nullable=False)
     description = Column(Text)  # Now supports rich text (HTML)
     kpis = Column(Text, nullable=True)  # Key Performance Indicators
+    scope = Column(Enum(GoalScope), nullable=False)
     type = Column(Enum(GoalType), nullable=False)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     progress_percentage = Column(Integer, default=0)
     status = Column(Enum(GoalStatus), default=GoalStatus.ACTIVE)
 
-    # Individual goal specific fields
-    quarter = Column(Enum(Quarter), nullable=True)  # Required for INDIVIDUAL goals
-    year = Column(Integer, nullable=True)  # Required for INDIVIDUAL goals
+    # Time period fields
+    quarter = Column(Enum(Quarter), nullable=True)  # Required for QUARTERLY type
+    year = Column(Integer, nullable=True)  # Required for QUARTERLY type
     frozen = Column(Boolean, default=False)  # Frozen goals cannot be edited
     frozen_at = Column(DateTime(timezone=True))  # When goal was frozen
     frozen_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
-    # Approval fields for INDIVIDUAL goals
+    # Approval fields for INDIVIDUAL scope goals
     rejection_reason = Column(Text, nullable=True)  # Why goal was rejected
     approved_at = Column(DateTime(timezone=True))
     approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
@@ -284,8 +289,8 @@ class Goal(Base):
     # Foreign Keys
     parent_goal_id = Column(UUID(as_uuid=True), ForeignKey("goals.id"), nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # For INDIVIDUAL goals
-    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)  # For DEPARTMENTAL goals
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # For INDIVIDUAL scope goals
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)  # For DEPARTMENTAL scope goals
 
     # Relationships
     parent_goal = relationship("Goal", remote_side=[id], back_populates="child_goals")
@@ -294,7 +299,7 @@ class Goal(Base):
     owner = relationship("User", foreign_keys=[owner_id], back_populates="owned_goals")
     approver = relationship("User", foreign_keys=[approved_by])
     freezer = relationship("User", foreign_keys=[frozen_by])
-    organization = relationship("Organization")  # For DEPARTMENTAL goals
+    organization = relationship("Organization")  # For DEPARTMENTAL scope goals
     progress_reports = relationship("GoalProgressReport", back_populates="goal")
     initiatives = relationship("Initiative", back_populates="goal")
     tags = relationship("GoalTag", secondary="goal_tag_assignments", back_populates="goals")

@@ -72,6 +72,7 @@ import {
   useDeleteGoalTag,
   useFreezeGoal,
   useUnfreezeGoal,
+  useOrganizations,
 } from "@/lib/react-query"
 import { Progress } from "@/components/ui/progress"
 
@@ -177,7 +178,7 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
           {goal.frozen && (
             <Badge className="bg-gray-200 text-gray-800 text-xs px-1.5 py-0">Frozen</Badge>
           )}
-          {goal.quarter && goal.year && (
+          {goal.quarter && goal.year && goal.type === "QUARTERLY" && (
             <Badge variant="outline" className="text-xs px-1.5 py-0">{goal.quarter} {goal.year}</Badge>
           )}
         </div>
@@ -250,6 +251,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    scope: "COMPANY_WIDE",
     type: "QUARTERLY",
     kpis: "",
     difficulty_level: 3,
@@ -259,10 +261,12 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
     end_date: "",
     parent_goal_id: "",
     tag_ids: [],
+    organization_id: "",
   })
 
   const { data: goals = [] } = useGoals()
   const { data: tags = [] } = useGoalTags()
+  const { data: organizations = [] } = useOrganizations()
 
   // Update form data when goal changes
   useEffect(() => {
@@ -270,6 +274,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
       setFormData({
         title: goal.title || "",
         description: goal.description || "",
+        scope: goal.scope || "COMPANY_WIDE",
         type: goal.type || "QUARTERLY",
         kpis: goal.kpis || "",
         difficulty_level: goal.difficulty_level || 3,
@@ -279,12 +284,14 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         end_date: goal.end_date || "",
         parent_goal_id: goal.parent_goal_id || "",
         tag_ids: goal.tags?.map(t => t.id) || [],
+        organization_id: goal.organization_id || "",
       })
     } else {
       // Reset form when creating new goal
       setFormData({
         title: "",
         description: "",
+        scope: "COMPANY_WIDE",
         type: "QUARTERLY",
         kpis: "",
         difficulty_level: 3,
@@ -294,6 +301,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         end_date: "",
         parent_goal_id: "",
         tag_ids: [],
+        organization_id: "",
       })
     }
   }, [goal, currentQuarter, currentYear])
@@ -306,8 +314,22 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
 
   const potentialParents = goals.filter((g) => {
     if (goal && g.id === goal.id) return false
-    if (formData.type === "YEARLY") return false
-    if (formData.type === "QUARTERLY") return g.type === "YEARLY"
+    // Yearly company-wide goals can link to other yearly company-wide goals
+    if (formData.scope === "COMPANY_WIDE" && formData.type === "YEARLY") {
+      return g.scope === "COMPANY_WIDE" && g.type === "YEARLY"
+    }
+    // Quarterly company-wide goals can link to yearly company-wide goals
+    if (formData.scope === "COMPANY_WIDE" && formData.type === "QUARTERLY") {
+      return g.scope === "COMPANY_WIDE" && g.type === "YEARLY"
+    }
+    // Departmental goals can link to any company-wide goal
+    if (formData.scope === "DEPARTMENTAL") {
+      return g.scope === "COMPANY_WIDE"
+    }
+    // Individual goals can link to departmental or company-wide goals
+    if (formData.scope === "INDIVIDUAL") {
+      return g.scope === "COMPANY_WIDE" || g.scope === "DEPARTMENTAL"
+    }
     return false
   })
 
@@ -345,7 +367,25 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="type">Goal Type</Label>
+                <Label htmlFor="scope">Goal Scope <span className="text-red-500">*</span></Label>
+                <Select
+                  value={formData.scope}
+                  onValueChange={(value) => setFormData({ ...formData, scope: value, parent_goal_id: "", organization_id: "" })}
+                  disabled={!!goal}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="COMPANY_WIDE">Company-Wide</SelectItem>
+                    <SelectItem value="DEPARTMENTAL">Departmental</SelectItem>
+                    <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="type">Time Period <span className="text-red-500">*</span></Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value, parent_goal_id: "" })}
@@ -355,30 +395,30 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="YEARLY">Yearly Goal</SelectItem>
-                    <SelectItem value="QUARTERLY">Quarterly Goal</SelectItem>
+                    <SelectItem value="YEARLY">Yearly</SelectItem>
+                    <SelectItem value="QUARTERLY">Quarterly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="difficulty">Difficulty Level</Label>
-                <Select
-                  value={formData.difficulty_level.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, difficulty_level: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 - Very Easy</SelectItem>
-                    <SelectItem value="2">2 - Easy</SelectItem>
-                    <SelectItem value="3">3 - Medium</SelectItem>
-                    <SelectItem value="4">4 - Hard</SelectItem>
-                    <SelectItem value="5">5 - Very Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="difficulty">Difficulty Level</Label>
+              <Select
+                value={formData.difficulty_level.toString()}
+                onValueChange={(value) => setFormData({ ...formData, difficulty_level: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 - Very Easy</SelectItem>
+                  <SelectItem value="2">2 - Easy</SelectItem>
+                  <SelectItem value="3">3 - Medium</SelectItem>
+                  <SelectItem value="4">4 - Hard</SelectItem>
+                  <SelectItem value="5">5 - Very Hard</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {formData.type === "QUARTERLY" && (
@@ -422,6 +462,22 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            )}
+
+            {formData.scope === "DEPARTMENTAL" && (
+              <div className="grid gap-2">
+                <Label htmlFor="organization">Department/Directorate <span className="text-red-500">*</span></Label>
+                <SearchableSelect
+                  value={formData.organization_id}
+                  onValueChange={(value) => setFormData({ ...formData, organization_id: value })}
+                  options={organizations.map((org) => ({
+                    value: org.id,
+                    label: `${org.name} (${org.level})`
+                  }))}
+                  placeholder="Search for department or directorate..."
+                  emptyMessage="No organizations found"
+                />
               </div>
             )}
 
@@ -1010,12 +1066,18 @@ export default function GoalsManagementPage() {
     createMutation.mutate({
       ...data,
       parent_goal_id: data.parent_goal_id === "" ? null : data.parent_goal_id,
+      organization_id: data.organization_id === "" ? null : data.organization_id,
     })
   }
 
   const handleUpdate = (data) => {
     if (editingGoal) {
-      updateMutation.mutate({ id: editingGoal.id, ...data })
+      updateMutation.mutate({
+        id: editingGoal.id,
+        ...data,
+        parent_goal_id: data.parent_goal_id === "" ? null : data.parent_goal_id,
+        organization_id: data.organization_id === "" ? null : data.organization_id,
+      })
     }
   }
 
@@ -1507,7 +1569,11 @@ export default function GoalsManagementPage() {
             {viewingGoal?.kpis && (
               <div className="space-y-2">
                 <h3 className="font-semibold text-sm text-gray-700">Key Performance Indicators</h3>
-                <p className="text-sm text-gray-600">{viewingGoal.kpis}</p>
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                  {viewingGoal.kpis.split('\n').filter(kpi => kpi.trim()).map((kpi, index) => (
+                    <li key={index} className="break-words">{kpi.trim()}</li>
+                  ))}
+                </ul>
               </div>
             )}
 

@@ -4,11 +4,14 @@ from datetime import datetime, date
 from enum import Enum
 import uuid
 
+class GoalScope(str, Enum):
+    COMPANY_WIDE = "COMPANY_WIDE"  # Organizational-level goals
+    DEPARTMENTAL = "DEPARTMENTAL"  # Department/Directorate-specific goals
+    INDIVIDUAL = "INDIVIDUAL"  # Individual employee goals
+
 class GoalType(str, Enum):
     YEARLY = "YEARLY"
     QUARTERLY = "QUARTERLY"
-    DEPARTMENTAL = "DEPARTMENTAL"  # NEW: Department/Directorate-specific goals
-    INDIVIDUAL = "INDIVIDUAL"
 
 class GoalStatus(str, Enum):
     PENDING_APPROVAL = "PENDING_APPROVAL"
@@ -27,12 +30,13 @@ class GoalBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=1000)
     description: Optional[str] = None  # Supports rich text (HTML)
     kpis: Optional[str] = None  # Key Performance Indicators
+    scope: GoalScope
     type: GoalType
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    quarter: Optional[Quarter] = None  # Required for INDIVIDUAL goals
-    year: Optional[int] = None  # Required for INDIVIDUAL goals
-    organization_id: Optional[uuid.UUID] = None  # Required for DEPARTMENTAL goals
+    quarter: Optional[Quarter] = None  # Required for QUARTERLY type
+    year: Optional[int] = None  # Required for QUARTERLY type
+    organization_id: Optional[uuid.UUID] = None  # Required for DEPARTMENTAL scope
 
     @validator('start_date', 'end_date', pre=True)
     def empty_string_to_none(cls, v):
@@ -49,15 +53,21 @@ class GoalBase(BaseModel):
         return v
 
     @validator('quarter')
-    def validate_individual_quarter(cls, v, values):
-        if 'type' in values and values['type'] == GoalType.INDIVIDUAL and not v:
-            raise ValueError('Quarter is required for INDIVIDUAL goals')
+    def validate_quarterly_quarter(cls, v, values):
+        if 'type' in values and values['type'] == GoalType.QUARTERLY and not v:
+            raise ValueError('Quarter is required for QUARTERLY goals')
         return v
 
     @validator('year')
-    def validate_individual_year(cls, v, values):
-        if 'type' in values and values['type'] == GoalType.INDIVIDUAL and not v:
-            raise ValueError('Year is required for INDIVIDUAL goals')
+    def validate_quarterly_year(cls, v, values):
+        if 'type' in values and values['type'] == GoalType.QUARTERLY and not v:
+            raise ValueError('Year is required for QUARTERLY goals')
+        return v
+
+    @validator('organization_id')
+    def validate_departmental_organization(cls, v, values):
+        if 'scope' in values and values['scope'] == GoalScope.DEPARTMENTAL and not v:
+            raise ValueError('Organization is required for DEPARTMENTAL goals')
         return v
 
 class GoalCreate(GoalBase):
@@ -87,14 +97,24 @@ class GoalProgressUpdate(BaseModel):
 class GoalStatusUpdate(BaseModel):
     status: GoalStatus
 
-class GoalInDB(GoalBase):
+class GoalInDB(BaseModel):
+    """Schema for reading goals from database - no strict validation"""
     id: uuid.UUID
+    title: str
+    description: Optional[str] = None
+    kpis: Optional[str] = None
+    scope: GoalScope
+    type: GoalType
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    quarter: Optional[Quarter] = None
+    year: Optional[int] = None
+    organization_id: Optional[uuid.UUID] = None
     progress_percentage: int = 0
     status: GoalStatus = GoalStatus.ACTIVE
     parent_goal_id: Optional[uuid.UUID] = None
     created_by: uuid.UUID
     owner_id: Optional[uuid.UUID] = None
-    organization_id: Optional[uuid.UUID] = None  # For DEPARTMENTAL goals
     frozen: bool = False
     frozen_at: Optional[datetime] = None
     frozen_by: Optional[uuid.UUID] = None
