@@ -279,11 +279,6 @@ function GoalCard({
           {goal.frozen && (
             <Badge className="bg-gray-200 text-gray-800 text-xs px-1.5 py-0">Frozen</Badge>
           )}
-          {isAssignedByOther && (
-            <Badge className="bg-purple-100 text-purple-800 text-xs px-1.5 py-0 line-clamp-1">
-              Assigned
-            </Badge>
-          )}
           {goal.quarter && goal.year && goal.type === "QUARTERLY" && (
             <Badge variant="outline" className="text-xs px-1.5 py-0">{goal.quarter} {goal.year}</Badge>
           )}
@@ -371,17 +366,17 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
   const availableTypes = useMemo(() => {
     const types = []
     if (isDepartmentalOnly) {
-      // When on departmental tab, only show departmental option
+     
       if (canCreateDepartmental) types.push({ value: "DEPARTMENTAL", label: "Departmental" })
     } else {
-      // On organizational tab, show yearly/quarterly
-      if (canCreateYearly) types.push({ value: "YEARLY", label: "Yearly (Company-wide)" })
-      if (canCreateQuarterly) types.push({ value: "QUARTERLY", label: "Quarterly (Company-wide)" })
+       
+      if (canCreateYearly) types.push({ value: "COMPANY_WIDE", label: "Company-wide" })
+      
     }
     return types
   }, [isDepartmentalOnly, canCreateDepartmental, canCreateYearly, canCreateQuarterly])
 
-  // Filter organizations based on user's scope
+   
   const scopedOrganizations = useMemo(() => {
     if (!organizations || organizations.length === 0) return []
 
@@ -710,9 +705,9 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="YEARLY">Yearly</SelectItem>
-                  <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                <SelectContent className="min-w-[200px]">
+                  <SelectItem value="YEARLY" className="py-3">Yearly</SelectItem>
+                  <SelectItem value="QUARTERLY" className="py-3">Quarterly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -728,11 +723,11 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Q1">Q1 (Jan-Mar)</SelectItem>
-                      <SelectItem value="Q2">Q2 (Apr-Jun)</SelectItem>
-                      <SelectItem value="Q3">Q3 (Jul-Sep)</SelectItem>
-                      <SelectItem value="Q4">Q4 (Oct-Dec)</SelectItem>
+                    <SelectContent className="min-w-[180px]">
+                      <SelectItem value="Q1" className="py-3">Q1 (Jan-Mar)</SelectItem>
+                      <SelectItem value="Q2" className="py-3">Q2 (Apr-Jun)</SelectItem>
+                      <SelectItem value="Q3" className="py-3">Q3 (Jul-Sep)</SelectItem>
+                      <SelectItem value="Q4" className="py-3">Q4 (Oct-Dec)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1069,9 +1064,9 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="YEARLY">Yearly</SelectItem>
-                  <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                <SelectContent className="min-w-[200px]">
+                  <SelectItem value="YEARLY" className="py-3">Yearly</SelectItem>
+                  <SelectItem value="QUARTERLY" className="py-3">Quarterly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1087,11 +1082,11 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Q1">Q1 (Jan-Mar)</SelectItem>
-                    <SelectItem value="Q2">Q2 (Apr-Jun)</SelectItem>
-                    <SelectItem value="Q3">Q3 (Jul-Sep)</SelectItem>
-                    <SelectItem value="Q4">Q4 (Oct-Dec)</SelectItem>
+                  <SelectContent className="min-w-[180px]">
+                    <SelectItem value="Q1" className="py-3">Q1 (Jan-Mar)</SelectItem>
+                    <SelectItem value="Q2" className="py-3">Q2 (Apr-Jun)</SelectItem>
+                    <SelectItem value="Q3" className="py-3">Q3 (Jul-Sep)</SelectItem>
+                    <SelectItem value="Q4" className="py-3">Q4 (Oct-Dec)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1747,81 +1742,56 @@ export default function GoalsPage() {
     return filtered
   }
 
-  // Filter goals by type, year, quarter, and search term
-  const organizationalGoals = useMemo(() => {
-    let filtered = goals.filter(g => g.type === "YEARLY" || g.type === "QUARTERLY")
+ 
+const filteredBase = useMemo(() => {
+  let list = [...goals];
 
-    if (yearFilter !== "all") {
-      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
-    }
+  // Year Filter
+  if (yearFilter !== "all") {
+    list = list.filter(g => g.year?.toString() === yearFilter);
+  }
 
-    if (quarterFilter !== "all") {
-      filtered = filtered.filter(g => g.quarter === quarterFilter)
-    }
+  // Quarter Filter
+  if (quarterFilter !== "all") {
+    list = list.filter(g => g.quarter === quarterFilter);
+  }
 
-    if (searchTerm) {
-      filtered = filtered.filter(g =>
-        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
+  // Search Filter
+  if (searchTerm) {
+    const term = searchTerm.toLowerCase();
+    list = list.filter(g =>
+      g.title?.toLowerCase().includes(term) ||
+      g.description?.toLowerCase().includes(term)
+    );
+  }
 
-    filtered = applyTagFilter(filtered)
+  // Tag Filter
+  return applyTagFilter(list);
+}, [goals, yearFilter, quarterFilter, searchTerm, tagFilter]);
 
-    return filtered
-  }, [goals, yearFilter, quarterFilter, searchTerm, tagFilter])
+// 2. Now, derive the specific lists based on "scope"
+const organizationalGoals = useMemo(() => {
+  return filteredBase.filter(g => g.scope === "COMPANY_WIDE");
+}, [filteredBase]);
 
-  const departmentalGoals = useMemo(() => {
-    let filtered = goals.filter(g => g.type === "DEPARTMENTAL")
-
+const departmentalGoals = useMemo(() => {
+  return filteredBase.filter(g => {
+    const isDept = g.scope === "DEPARTMENTAL";
+    // If a specific department is selected, filter by organization_id
     if (departmentFilter !== "all") {
-      filtered = filtered.filter(g => g.organization_id === departmentFilter)
+      return isDept && g.organization_id === departmentFilter;
     }
+    return isDept;
+  });
+}, [filteredBase, departmentFilter]);
 
-    if (yearFilter !== "all") {
-      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
-    }
+const myIndividualGoals = useMemo(() => {
+  return filteredBase.filter(g => 
+    g.scope === "INDIVIDUAL" && g.owner_id === user?.user_id
+  );
+}, [filteredBase, user]);
 
-    if (quarterFilter !== "all") {
-      filtered = filtered.filter(g => g.quarter === quarterFilter)
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(g =>
-        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    filtered = applyTagFilter(filtered)
-
-    return filtered
-  }, [goals, departmentFilter, yearFilter, quarterFilter, searchTerm, tagFilter])
-
-  const myIndividualGoals = useMemo(() => {
-    let filtered = goals.filter(g => g.type === "INDIVIDUAL" && g.owner_id === user?.user_id)
-
-    if (yearFilter !== "all") {
-      filtered = filtered.filter(g => g.year?.toString() === yearFilter)
-    }
-
-    if (quarterFilter !== "all") {
-      filtered = filtered.filter(g => g.quarter === quarterFilter)
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(g =>
-        g.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    filtered = applyTagFilter(filtered)
-
-    return filtered
-  }, [goals, user, yearFilter, quarterFilter, searchTerm, tagFilter])
-
-  // All goals combined
+  
   const allGoals = useMemo(() => {
     let filtered = [...goals]
 

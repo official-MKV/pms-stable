@@ -156,3 +156,41 @@ ssl/
 temp/
 tmp/
 tmpclaude-*
+
+# Claude Code temporary files
+.claude/
+*.claude.md
+
+# Python cache (additional coverage)
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# Misc development files
+.eslintcache
+.stylelintcache
+*.orig
+*.rej
+*.diff
+*.patch

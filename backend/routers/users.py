@@ -38,6 +38,87 @@ def enhance_user_with_supervisor(user: User, db: Session) -> dict:
             user_dict['supervisor_name'] = f"{supervisor.first_name} {supervisor.last_name}"
     return user_dict
 
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: uuid.UUID,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    permission_service: UserPermissions = Depends(get_permission_service)
+):
+    """
+    Permanently delete a user from the system
+    Requires user_delete permission
+    Checks for dependencies before deletion
+    """
+    # Check permissions
+    if "user_delete" not in current_user.permissions:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete users"
+        )
+
+    # Get the user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Prevent self-deletion
+    if str(user.id) == str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account"
+        )
+
+    # Check if user owns any active goals
+    from models import Goal, GoalStatus
+    active_goals = db.query(Goal).filter(
+        Goal.owner_id == user_id,
+        Goal.status.in_([GoalStatus.ACTIVE, GoalStatus.PENDING_APPROVAL])
+    ).count()
+    if active_goals > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete user. They own {active_goals} active goal(s). Please reassign or complete these goals first."
+        )
+
+    # Check if user is assigned to any active initiatives
+    from models import InitiativeAssignment, Initiative, InitiativeStatus
+    active_assignments = db.query(InitiativeAssignment).join(Initiative).filter(
+        InitiativeAssignment.user_id == user_id,
+        Initiative.status.in_([InitiativeStatus.CREATED, InitiativeStatus.STARTED])
+    ).count()
+    if active_assignments > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete user. They are assigned to {active_assignments} active initiative(s). Please reassign these first."
+        )
+
+    # Check if user is a supervisor for other users
+    supervised_users = db.query(User).filter(User.supervisor_id == user_id).count()
+    if supervised_users > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete user. They are supervising {supervised_users} other user(s). Please reassign supervisees first."
+        )
+
+    # All checks passed - proceed with deletion
+    user_name = f"{user.first_name} {user.last_name}"
+
+    # Delete user history
+    db.query(UserHistory).filter(UserHistory.user_id == user_id).delete()
+
+    # Delete the user
+    db.delete(user)
+    db.commit()
+
+    return {
+        "message": f"User {user_name} has been permanently deleted",
+        "user_id": str(user_id)
+    }
+
 @router.get("/", response_model=UserList)
 async def get_users(
     page: int = Query(1, ge=1),

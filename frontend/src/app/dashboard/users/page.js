@@ -163,6 +163,25 @@ export default function UsersPage() {
     })
   }
 
+  const handleDeleteUser = (user) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete User Permanently',
+      description: `Are you sure you want to permanently delete ${user.name} (${user.email})? This action cannot be undone and will remove all associated data.`,
+      onConfirm: async () => {
+        try {
+          const { DELETE } = await import('@/lib/api')
+          await DELETE(`/api/users/${user.id}`)
+          toast.success(`User ${user.name} has been permanently deleted`)
+          refetchUsers()
+        } catch (error) {
+          console.error('Error deleting user:', error)
+          toast.error(error.message || 'Failed to delete user. They may have associated data that must be removed first.')
+        }
+      }
+    })
+  }
+
   const handleCloseForm = () => {
     setIsFormOpen(false)
     setEditingUser(null)
@@ -418,6 +437,15 @@ export default function UsersPage() {
                                 )}
                               </>
                             )}
+
+                            {/* Delete Option - available for all statuses */}
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteUser(user)}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Permanently
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
