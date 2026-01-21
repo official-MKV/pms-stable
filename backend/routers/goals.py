@@ -56,26 +56,30 @@ async def get_goals(
     # Build base query - all goals are company-wide (yearly/quarterly)
     query = db.query(Goal)
 
-    # Apply scope filtering
+    # Apply scope filtering based on permissions
+    # Users with GOAL_VIEW_ALL permission (e.g., admins, super-admins) can see ALL goals
+    # Regular users can only see goals within their organizational scope
     if permission_service.user_has_permission(user, SystemPermissions.GOAL_VIEW_ALL):
-        # Can see all goals
-        pass  # No filtering needed
+        # Can see all goals (no filtering needed)
+        pass
     else:
         # Get user's supervisees (users who report to this user)
         supervisee_ids_subquery = db.query(User.id).filter(User.supervisor_id == user.id).subquery()
 
-        # Users can see:
-        # 1. All organizational goals (yearly/quarterly) - everyone can view
-        # 2. Departmental goals in their accessible organizations
-        # 3. Individual goals they own
-        # 4. Individual goals owned by their supervisees (for approval/review)
-        # 5. Goals they created
+        # Regular users can see:
+        # 1. All COMPANY_WIDE goals (yearly/quarterly) - visible to everyone
+        # 2. DEPARTMENTAL goals ONLY in their accessible organizations (ISOLATED by organizational scope)
+        #    - Users in Department A can only see Department A's departmental goals
+        #    - Unless they have scope_override (global or cross_directorate) in their role
+        # 3. INDIVIDUAL goals they own
+        # 4. INDIVIDUAL goals owned by their supervisees (for approval/review)
+        # 5. Goals they created (any scope)
         from sqlalchemy import or_
         accessible_org_ids = permission_service.get_accessible_organizations(user)
 
         visibility_filter = or_(
-            Goal.scope == GoalScope.COMPANY_WIDE,  # All company-wide goals (yearly or quarterly)
-            (Goal.scope == GoalScope.DEPARTMENTAL) & (Goal.organization_id.in_(accessible_org_ids)),  # Departmental goals in accessible orgs
+            Goal.scope == GoalScope.COMPANY_WIDE,  # All company-wide goals visible to everyone
+            (Goal.scope == GoalScope.DEPARTMENTAL) & (Goal.organization_id.in_(accessible_org_ids)),  # Departmental goals ISOLATED by org scope
             Goal.owner_id == user.id,  # Individual goals owned by user
             Goal.owner_id.in_(supervisee_ids_subquery),  # Individual goals owned by supervisees
             Goal.created_by == user.id  # Goals created by user
@@ -98,8 +102,44 @@ async def get_goals(
     offset = (page - 1) * per_page
     goals = query.offset(offset).limit(per_page).all()
 
+    # Enrich goals with additional names and counts
+    goal_responses = []
+    for goal in goals:
+        goal_dict = GoalSchema.from_orm(goal).dict()
+
+        # Add organization name for DEPARTMENTAL goals
+        if goal.organization_id:
+            org = db.query(Organization).filter(Organization.id == goal.organization_id).first()
+            goal_dict['organization_name'] = org.name if org else None
+
+        # Add owner name for INDIVIDUAL goals
+        if goal.owner_id:
+            owner = db.query(User).filter(User.id == goal.owner_id).first()
+            goal_dict['owner_name'] = owner.name if owner else None
+
+        # Add creator name
+        if goal.created_by:
+            creator = db.query(User).filter(User.id == goal.created_by).first()
+            goal_dict['creator_name'] = creator.name if creator else None
+
+        # Add approver name
+        if goal.approved_by:
+            approver = db.query(User).filter(User.id == goal.approved_by).first()
+            goal_dict['approver_name'] = approver.name if approver else None
+
+        # Add parent goal title
+        if goal.parent_goal_id:
+            parent = db.query(Goal).filter(Goal.id == goal.parent_goal_id).first()
+            goal_dict['parent_goal_title'] = parent.title if parent else None
+
+        # Add child count
+        child_count = db.query(Goal).filter(Goal.parent_goal_id == goal.id).count()
+        goal_dict['child_count'] = child_count
+
+        goal_responses.append(GoalSchema(**goal_dict))
+
     return GoalList(
-        goals=[GoalSchema.from_orm(goal) for goal in goals],
+        goals=goal_responses,
         total=total,
         page=page,
         per_page=per_page
@@ -136,6 +176,11 @@ async def get_supervisees_goals(
     goal_responses = []
     for goal in goals:
         goal_dict = GoalSchema.from_orm(goal).dict()
+
+        # Add organization name for DEPARTMENTAL goals
+        if goal.organization_id:
+            org = db.query(Organization).filter(Organization.id == goal.organization_id).first()
+            goal_dict['organization_name'] = org.name if org else None
 
         # Add owner name
         if goal.owner_id:
@@ -784,7 +829,39 @@ async def get_goal(
         if goal.created_by != user.id:
             raise HTTPException(status_code=403, detail="Cannot access this goal")
 
-    return GoalSchema.from_orm(goal)
+    # Enrich goal with additional names and counts
+    goal_dict = GoalSchema.from_orm(goal).dict()
+
+    # Add organization name for DEPARTMENTAL goals
+    if goal.organization_id:
+        org = db.query(Organization).filter(Organization.id == goal.organization_id).first()
+        goal_dict['organization_name'] = org.name if org else None
+
+    # Add owner name for INDIVIDUAL goals
+    if goal.owner_id:
+        owner = db.query(User).filter(User.id == goal.owner_id).first()
+        goal_dict['owner_name'] = owner.name if owner else None
+
+    # Add creator name
+    if goal.created_by:
+        creator = db.query(User).filter(User.id == goal.created_by).first()
+        goal_dict['creator_name'] = creator.name if creator else None
+
+    # Add approver name
+    if goal.approved_by:
+        approver = db.query(User).filter(User.id == goal.approved_by).first()
+        goal_dict['approver_name'] = approver.name if approver else None
+
+    # Add parent goal title
+    if goal.parent_goal_id:
+        parent = db.query(Goal).filter(Goal.id == goal.parent_goal_id).first()
+        goal_dict['parent_goal_title'] = parent.title if parent else None
+
+    # Add child count
+    child_count = db.query(Goal).filter(Goal.parent_goal_id == goal.id).count()
+    goal_dict['child_count'] = child_count
+
+    return GoalSchema(**goal_dict)
 
 @router.put("/{goal_id}", response_model=GoalSchema)
 async def update_goal(

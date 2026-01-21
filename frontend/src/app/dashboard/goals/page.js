@@ -282,6 +282,11 @@ function GoalCard({
           {goal.quarter && goal.year && goal.type === "QUARTERLY" && (
             <Badge variant="outline" className="text-xs px-1.5 py-0">{goal.quarter} {goal.year}</Badge>
           )}
+          {goal.scope === "DEPARTMENTAL" && goal.organization_name && (
+            <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs px-1.5 py-0">
+              {goal.organization_name}
+            </Badge>
+          )}
         </div>
       </CardHeader>
       
@@ -1444,6 +1449,11 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor, super
                 )}
                 {goal.frozen && (
                   <Badge className="bg-gray-200 text-gray-800">Frozen</Badge>
+                )}
+                {goal.scope === "DEPARTMENTAL" && goal.organization_name && (
+                  <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                    {goal.organization_name}
+                  </Badge>
                 )}
               </div>
               {/* Show owner name if viewing someone else's goal */}

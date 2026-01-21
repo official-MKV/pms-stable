@@ -107,6 +107,7 @@ class PermissionGroups:
                     SystemPermissions.USER_EDIT,
                     SystemPermissions.USER_SUSPEND,
                     SystemPermissions.USER_ACTIVATE,
+                    SystemPermissions.USER_ON_LEAVE,
                     SystemPermissions.USER_ARCHIVE,
                     SystemPermissions.USER_VIEW_ALL,
                     SystemPermissions.USER_HISTORY_VIEW,

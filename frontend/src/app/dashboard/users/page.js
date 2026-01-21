@@ -392,7 +392,7 @@ export default function UsersPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(user); }}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
@@ -401,37 +401,37 @@ export default function UsersPage() {
                             {/* Status Actions */}
                             {user.status === 'ACTIVE' ? (
                               <>
-                                <DropdownMenuItem onClick={() => handleSendPasswordReset(user)}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendPasswordReset(user); }}>
                                   <Key className="mr-2 h-4 w-4" />
                                   Send Password Reset
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user, 'SUSPENDED')}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(user, 'SUSPENDED'); }}>
                                   Suspend
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user, 'ON_LEAVE')}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(user, 'ON_LEAVE'); }}>
                                   Mark as On Leave
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user, 'ARCHIVED')}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(user, 'ARCHIVED'); }}>
                                   Archive
                                 </DropdownMenuItem>
                               </>
                             ) : user.status === 'PENDING_ACTIVATION' ? (
                               <>
-                                <DropdownMenuItem onClick={() => handleResendInvite(user)}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleResendInvite(user); }}>
                                   <Send className="mr-2 h-4 w-4" />
                                   Resend Invite Link
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user, 'ARCHIVED')}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(user, 'ARCHIVED'); }}>
                                   Archive
                                 </DropdownMenuItem>
                               </>
                             ) : (
                               <>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user, 'ACTIVE')}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(user, 'ACTIVE'); }}>
                                   Reactivate
                                 </DropdownMenuItem>
                                 {user.status !== 'ARCHIVED' && (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(user, 'ARCHIVED')}>
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(user, 'ARCHIVED'); }}>
                                     Archive
                                   </DropdownMenuItem>
                                 )}
@@ -440,7 +440,7 @@ export default function UsersPage() {
 
                             {/* Delete Option - available for all statuses */}
                             <DropdownMenuItem
-                              onClick={() => handleDeleteUser(user)}
+                              onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }}
                               className="text-red-600 focus:text-red-600 focus:bg-red-50"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />

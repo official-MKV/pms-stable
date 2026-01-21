@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -18,6 +18,11 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  Edit,
+  Send,
+  Key,
+  Trash2,
+  MoreVertical,
 } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -27,7 +32,24 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useUsers, useGoals, useSuperviseeGoals } from "@/lib/react-query"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useUsers, useGoals, useSuperviseeGoals, useUpdateUserStatus } from "@/lib/react-query"
+import { POST } from "@/lib/api"
+import { toast } from "sonner"
 
 const statusColors = {
   PENDING_APPROVAL: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -151,13 +173,36 @@ function InitiativeCard({ initiative }) {
   )
 }
 
+function ConfirmDialog({ isOpen, onClose, onConfirm, title, description }) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => {
+            onConfirm()
+            onClose()
+          }}>Confirm</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function UserDetailPage() {
   const params = useParams()
   const router = useRouter()
   const userId = params.id
 
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', description: '', onConfirm: () => {} })
+
   const { data: users = [], isLoading: isLoadingUsers } = useUsers()
   const { data: allGoals = [], isLoading: isLoadingGoals } = useGoals()
+  const updateStatusMutation = useUpdateUserStatus()
 
   // Find the user
   const user = useMemo(() => {
@@ -194,6 +239,73 @@ export default function UserDetailPage() {
       avgProgress,
     }
   }, [userGoals])
+
+  // Action handlers
+  const handleStatusChange = (newStatus) => {
+    if (!user) return
+    updateStatusMutation.mutate({ id: user.id, status: newStatus })
+  }
+
+  const handleResendInvite = () => {
+    if (!user) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Resend Onboarding Invite',
+      description: `Send a new onboarding invite to ${user.email}?`,
+      onConfirm: async () => {
+        try {
+          await POST(`/api/users/${user.id}/resend-onboarding`, {})
+          toast.success(`Onboarding invite successfully resent to ${user.email}`)
+        } catch (error) {
+          console.error('Error resending invite:', error)
+          toast.error(error.message || 'Failed to resend invite')
+        }
+      }
+    })
+  }
+
+  const handleSendPasswordReset = () => {
+    if (!user) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Send Password Reset Link',
+      description: `Send a password reset link to ${user.email}?`,
+      onConfirm: async () => {
+        try {
+          await POST(`/api/users/${user.id}/send-password-reset`, {})
+          toast.success(`Password reset link successfully sent to ${user.email}`)
+        } catch (error) {
+          console.error('Error sending password reset:', error)
+          toast.error(error.message || 'Failed to send password reset link')
+        }
+      }
+    })
+  }
+
+  const handleDeleteUser = () => {
+    if (!user) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete User Permanently',
+      description: `Are you sure you want to permanently delete ${user.name} (${user.email})? This action cannot be undone and will remove all associated data.`,
+      onConfirm: async () => {
+        try {
+          const { DELETE } = await import('@/lib/api')
+          await DELETE(`/api/users/${user.id}`)
+          toast.success(`User ${user.name} has been permanently deleted`)
+          router.push('/dashboard/users')
+        } catch (error) {
+          console.error('Error deleting user:', error)
+          toast.error(error.message || 'Failed to delete user. They may have associated data that must be removed first.')
+        }
+      }
+    })
+  }
+
+  const handleEditUser = () => {
+    // Navigate back to users page and open edit dialog
+    router.push('/dashboard/users')
+  }
 
   if (isLoadingUsers || isLoadingGoals) {
     return (
@@ -244,9 +356,77 @@ export default function UserDetailPage() {
           </Avatar>
 
           <div className="flex-1 space-y-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
-              <p className="text-lg text-gray-600">{user.job_title || 'No title'}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
+                <p className="text-lg text-gray-600">{user.job_title || 'No title'}</p>
+              </div>
+
+              {/* Action Buttons */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreVertical className="h-4 w-4 mr-2" />
+                    Actions
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleEditUser}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </DropdownMenuItem>
+
+                  {/* Status Actions */}
+                  {user.status === 'ACTIVE' ? (
+                    <>
+                      <DropdownMenuItem onClick={handleSendPasswordReset}>
+                        <Key className="mr-2 h-4 w-4" />
+                        Send Password Reset
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleStatusChange('SUSPENDED')}>
+                        Suspend
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleStatusChange('ON_LEAVE')}>
+                        Mark as On Leave
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleStatusChange('ARCHIVED')}>
+                        Archive
+                      </DropdownMenuItem>
+                    </>
+                  ) : user.status === 'PENDING_ACTIVATION' ? (
+                    <>
+                      <DropdownMenuItem onClick={handleResendInvite}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Resend Invite Link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleStatusChange('ARCHIVED')}>
+                        Archive
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem onClick={() => handleStatusChange('ACTIVE')}>
+                        Reactivate
+                      </DropdownMenuItem>
+                      {user.status !== 'ARCHIVED' && (
+                        <DropdownMenuItem onClick={() => handleStatusChange('ARCHIVED')}>
+                          Archive
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+
+                  {/* Delete Option - available for all statuses */}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDeleteUser}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Permanently
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -414,6 +594,15 @@ export default function UserDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+      />
     </div>
   )
 }

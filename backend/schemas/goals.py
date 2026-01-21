@@ -151,6 +151,7 @@ class Goal(GoalInDB):
     owner_name: Optional[str] = None
     approver_name: Optional[str] = None
     parent_goal_title: Optional[str] = None
+    organization_name: Optional[str] = None  # Department/division name for DEPARTMENTAL goals
     child_count: Optional[int] = 0
     tags: List['GoalTag'] = []
 

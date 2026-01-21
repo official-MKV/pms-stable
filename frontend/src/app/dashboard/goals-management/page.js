@@ -181,6 +181,11 @@ function OrganizationalGoalCard({ goal, onEdit, onDelete, onUpdateProgress, onSt
           {goal.quarter && goal.year && goal.type === "QUARTERLY" && (
             <Badge variant="outline" className="text-xs px-1.5 py-0">{goal.quarter} {goal.year}</Badge>
           )}
+          {goal.scope === "DEPARTMENTAL" && goal.organization_name && (
+            <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs px-1.5 py-0">
+              {goal.organization_name}
+            </Badge>
+          )}
         </div>
       </CardHeader>
 
@@ -1551,6 +1556,11 @@ export default function GoalsManagementPage() {
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
                     <Lock className="h-3 w-3 mr-1" />
                     Frozen
+                  </Badge>
+                )}
+                {viewingGoal?.scope === "DEPARTMENTAL" && viewingGoal?.organization_name && (
+                  <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                    {viewingGoal.organization_name}
                   </Badge>
                 )}
               </div>

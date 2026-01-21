@@ -1511,3 +1511,73 @@ async def reorder_subtasks(
     db.commit()
 
     return {"message": "Sub-tasks reordered successfully"}
+
+@router.delete("/{initiative_id}")
+async def delete_initiative(
+    initiative_id: uuid.UUID,
+    current_user: UserSession = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    permission_service: UserPermissions = Depends(get_permission_service)
+):
+    """
+    Delete an initiative
+    Only the initiative creator or users with initiative_delete permission can delete initiatives
+    Cannot delete initiatives that have been completed or are under review
+    """
+    user = db.query(User).filter(User.id == current_user.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+    if not initiative:
+        raise HTTPException(status_code=404, detail="Initiative not found")
+
+    # Permission check: must be creator or have initiative_delete permission
+    can_delete = (
+        initiative.created_by == user.id or
+        permission_service.user_has_permission(user, SystemPermissions.INITIATIVE_DELETE)
+    )
+
+    if not can_delete:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to delete this initiative"
+        )
+
+    # Prevent deletion of completed or under-review initiatives (optional business rule)
+    if initiative.status in [InitiativeStatus.COMPLETED, InitiativeStatus.UNDER_REVIEW]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete initiative with status {initiative.status.value}. Only pending or ongoing initiatives can be deleted."
+        )
+
+    # Delete related records first (cascade delete)
+    # Delete assignments
+    from models import InitiativeAssignment, InitiativeSubmission, InitiativeDocument, InitiativeExtension
+    db.query(InitiativeAssignment).filter(InitiativeAssignment.initiative_id == initiative_id).delete()
+
+    # Delete sub-tasks
+    db.query(InitiativeSubTask).filter(InitiativeSubTask.initiative_id == initiative_id).delete()
+
+    # Delete submissions
+    db.query(InitiativeSubmission).filter(InitiativeSubmission.initiative_id == initiative_id).delete()
+
+    # Delete documents (note: you may want to also delete physical files)
+    documents = db.query(InitiativeDocument).filter(InitiativeDocument.initiative_id == initiative_id).all()
+    for doc in documents:
+        # Optionally delete physical file
+        if os.path.exists(doc.file_path):
+            try:
+                os.remove(doc.file_path)
+            except Exception as e:
+                print(f"Error deleting file {doc.file_path}: {e}")
+        db.delete(doc)
+
+    # Delete extensions
+    db.query(InitiativeExtension).filter(InitiativeExtension.initiative_id == initiative_id).delete()
+
+    # Finally, delete the initiative itself
+    db.delete(initiative)
+    db.commit()
+
+    return {"message": "Initiative deleted successfully"}
