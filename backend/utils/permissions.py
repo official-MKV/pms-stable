@@ -33,6 +33,7 @@ class SystemPermissions:
     USER_ACTIVATE = "user_activate"
     USER_ON_LEAVE = "user_on_leave"
     USER_ARCHIVE = "user_archive"
+    USER_DELETE = "user_delete"
     USER_VIEW_ALL = "user_view_all"
     USER_HISTORY_VIEW = "user_history_view"
 
@@ -109,6 +110,7 @@ class PermissionGroups:
                     SystemPermissions.USER_ACTIVATE,
                     SystemPermissions.USER_ON_LEAVE,
                     SystemPermissions.USER_ARCHIVE,
+                    SystemPermissions.USER_DELETE,
                     SystemPermissions.USER_VIEW_ALL,
                     SystemPermissions.USER_HISTORY_VIEW,
                 ]

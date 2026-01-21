@@ -52,10 +52,18 @@ class InitiativeWorkflowService:
         # Check if creator has supervisees (is a supervisor)
         has_supervisees = self.db.query(User).filter(User.supervisor_id == creator.id).count() > 0
 
+        # Check if creator has a leadership role
+        has_leadership_role = creator.role.is_leadership if creator.role else False
+
         # Determine initial status
-        if is_self_assigned:
+        if has_leadership_role:
+            # Users with leadership roles do not need approval for their initiatives
+            initial_status = InitiativeStatus.ASSIGNED if not is_self_assigned else InitiativeStatus.PENDING
+            assigned_by = creator.id
+        elif is_self_assigned:
             # Individual creating initiative for themselves - needs approval
             initial_status = InitiativeStatus.PENDING_APPROVAL
+            assigned_by = None
         elif has_supervisees and creator.id not in assignee_ids:
             # Supervisor creating for others (not including self) - no approval needed
             initial_status = InitiativeStatus.ASSIGNED

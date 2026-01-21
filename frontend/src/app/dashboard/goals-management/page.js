@@ -258,7 +258,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
     description: "",
     scope: "COMPANY_WIDE",
     type: "QUARTERLY",
-    kpis: "",
+    kpis: [],
     difficulty_level: 3,
     quarter: currentQuarter,
     year: currentYear,
@@ -281,7 +281,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
         description: goal.description || "",
         scope: goal.scope || "COMPANY_WIDE",
         type: goal.type || "QUARTERLY",
-        kpis: goal.kpis || "",
+        kpis: Array.isArray(goal.kpis) ? goal.kpis : (goal.kpis ? [goal.kpis] : []),
         difficulty_level: goal.difficulty_level || 3,
         quarter: goal.quarter || currentQuarter,
         year: goal.year || currentYear,
@@ -539,14 +539,47 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit }) {
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor="kpis">KPIs (Key Performance Indicators)</Label>
-              <Textarea
-                id="kpis"
-                value={formData.kpis}
-                onChange={(e) => setFormData({ ...formData, kpis: e.target.value })}
-                placeholder="Define the key performance indicators for this goal..."
-                rows={3}
-              />
+              <div className="flex items-center justify-between">
+                <Label>KPIs (Key Performance Indicators)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, kpis: [...formData.kpis, ""] })}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add KPI
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {formData.kpis.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No KPIs added yet. Click "Add KPI" to add one.</p>
+                )}
+                {formData.kpis.map((kpi, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={kpi}
+                      onChange={(e) => {
+                        const newKpis = [...formData.kpis]
+                        newKpis[index] = e.target.value
+                        setFormData({ ...formData, kpis: newKpis })
+                      }}
+                      placeholder={`KPI #${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newKpis = formData.kpis.filter((_, i) => i !== index)
+                        setFormData({ ...formData, kpis: newKpis })
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-2">
@@ -1599,12 +1632,12 @@ export default function GoalsManagementPage() {
             )}
 
             {/* KPIs */}
-            {viewingGoal?.kpis && (
+            {viewingGoal?.kpis && viewingGoal.kpis.length > 0 && (
               <div className="space-y-2">
                 <h3 className="font-semibold text-sm text-gray-700">Key Performance Indicators</h3>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                  {viewingGoal.kpis.split('\n').filter(kpi => kpi.trim()).map((kpi, index) => (
-                    <li key={index} className="break-words">{kpi.trim()}</li>
+                  {(Array.isArray(viewingGoal.kpis) ? viewingGoal.kpis : viewingGoal.kpis.split('\n').filter(k => k.trim())).map((kpi, index) => (
+                    <li key={index} className="break-words">{typeof kpi === 'string' ? kpi.trim() : kpi}</li>
                   ))}
                 </ul>
               </div>

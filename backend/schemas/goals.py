@@ -29,7 +29,7 @@ class Quarter(str, Enum):
 class GoalBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=1000)
     description: Optional[str] = None  # Supports rich text (HTML)
-    kpis: Optional[str] = None  # Key Performance Indicators
+    kpis: Optional[List[str]] = None  # Key Performance Indicators as line items
     scope: GoalScope
     type: GoalType
     start_date: Optional[date] = None
@@ -78,7 +78,7 @@ class GoalCreate(GoalBase):
 class GoalUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=1000)
     description: Optional[str] = None
-    kpis: Optional[str] = None
+    kpis: Optional[List[str]] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     tag_ids: Optional[List[uuid.UUID]] = None
@@ -102,7 +102,7 @@ class GoalInDB(BaseModel):
     id: uuid.UUID
     title: str
     description: Optional[str] = None
-    kpis: Optional[str] = None
+    kpis: Optional[List[str]] = None
     scope: Optional[GoalScope] = None  # Nullable for backward compatibility
     type: GoalType
     start_date: Optional[date] = None
@@ -125,6 +125,24 @@ class GoalInDB(BaseModel):
     discarded_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    @validator('kpis', pre=True)
+    def handle_empty_kpis(cls, v):
+        """Convert empty string or invalid JSON to None"""
+        if v == '' or v is None:
+            return None
+        # If it's already a list, return it
+        if isinstance(v, list):
+            return v
+        # If it's a string, try to parse as JSON
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                # Invalid JSON, return None
+                return None
+        return v
 
     class Config:
         from_attributes = True

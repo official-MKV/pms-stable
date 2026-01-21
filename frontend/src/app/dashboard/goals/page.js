@@ -437,7 +437,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
     description: "",
     scope: availableTypes[0]?.value || (isDepartmentalOnly ? "DEPARTMENTAL" : "COMPANY_WIDE"),
     type: "QUARTERLY",  // Time period: YEARLY or QUARTERLY
-    kpis: "",
+    kpis: [],
     difficulty_level: 3,
     start_date: "",
     end_date: "",
@@ -459,7 +459,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
         description: goal.description || "",
         scope: goal.scope || availableTypes[0]?.value || (isDepartmentalOnly ? "DEPARTMENTAL" : "COMPANY_WIDE"),
         type: goal.type || "QUARTERLY",
-        kpis: goal.kpis || "",
+        kpis: Array.isArray(goal.kpis) ? goal.kpis : (goal.kpis ? [goal.kpis] : []),
         difficulty_level: goal.difficulty_level || 3,
         start_date: goal.start_date || "",
         end_date: goal.end_date || "",
@@ -475,7 +475,7 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
         description: "",
         scope: availableTypes[0]?.value || (isDepartmentalOnly ? "DEPARTMENTAL" : "COMPANY_WIDE"),
         type: "QUARTERLY",
-        kpis: "",
+        kpis: [],
         difficulty_level: 3,
         start_date: "",
         end_date: "",
@@ -628,14 +628,47 @@ function OrganizationalGoalForm({ goal, isOpen, onClose, onSubmit, canCreateYear
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="kpis">KPIs (Key Performance Indicators)</Label>
-              <Textarea
-                id="kpis"
-                value={formData.kpis}
-                onChange={(e) => setFormData({ ...formData, kpis: e.target.value })}
-                placeholder="Define the key performance indicators for this goal..."
-                rows={3}
-              />
+              <div className="flex items-center justify-between">
+                <Label>KPIs (Key Performance Indicators)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, kpis: [...formData.kpis, ""] })}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add KPI
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {formData.kpis.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No KPIs added yet. Click "Add KPI" to add one.</p>
+                )}
+                {formData.kpis.map((kpi, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={kpi}
+                      onChange={(e) => {
+                        const newKpis = [...formData.kpis]
+                        newKpis[index] = e.target.value
+                        setFormData({ ...formData, kpis: newKpis })
+                      }}
+                      placeholder={`KPI #${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newKpis = formData.kpis.filter((_, i) => i !== index)
+                        setFormData({ ...formData, kpis: newKpis })
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-2">
@@ -815,7 +848,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
     title: "",
     description: "",
     type: "QUARTERLY",  // Time period: YEARLY or QUARTERLY
-    kpis: "",
+    kpis: [],
     difficulty_level: 3,
     start_date: "",
     end_date: "",
@@ -837,7 +870,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
         title: goal.title || "",
         description: goal.description || "",
         type: goal.type || "QUARTERLY",
-        kpis: goal.kpis || "",
+        kpis: Array.isArray(goal.kpis) ? goal.kpis : (goal.kpis ? [goal.kpis] : []),
         difficulty_level: goal.difficulty_level || 3,
         start_date: goal.start_date || "",
         end_date: goal.end_date || "",
@@ -852,7 +885,7 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
         title: "",
         description: "",
         type: "QUARTERLY",
-        kpis: "",
+        kpis: [],
         difficulty_level: 3,
         start_date: "",
         end_date: "",
@@ -988,14 +1021,47 @@ function IndividualGoalForm({ goal, isOpen, onClose, onSubmit, canCreateForSuper
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="kpis">KPIs (Key Performance Indicators)</Label>
-              <Textarea
-                id="kpis"
-                value={formData.kpis}
-                onChange={(e) => setFormData({ ...formData, kpis: e.target.value })}
-                placeholder="Define the key performance indicators for this goal..."
-                rows={3}
-              />
+              <div className="flex items-center justify-between">
+                <Label>KPIs (Key Performance Indicators)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, kpis: [...formData.kpis, ""] })}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add KPI
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {formData.kpis.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No KPIs added yet. Click "Add KPI" to add one.</p>
+                )}
+                {formData.kpis.map((kpi, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={kpi}
+                      onChange={(e) => {
+                        const newKpis = [...formData.kpis]
+                        newKpis[index] = e.target.value
+                        setFormData({ ...formData, kpis: newKpis })
+                      }}
+                      placeholder={`KPI #${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newKpis = formData.kpis.filter((_, i) => i !== index)
+                        setFormData({ ...formData, kpis: newKpis })
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-2">
@@ -1498,10 +1564,14 @@ function GoalDetailDialog({ goal, isOpen, onClose, parentGoal, supervisor, super
             </div>
           )}
 
-          {goal.kpis && (
+          {goal.kpis && (Array.isArray(goal.kpis) ? goal.kpis.length > 0 : goal.kpis.trim()) && (
             <div className="space-y-2">
               <h3 className="font-semibold text-sm text-gray-700">Key Performance Indicators</h3>
-              <p className="text-sm text-gray-600">{goal.kpis}</p>
+              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                {(Array.isArray(goal.kpis) ? goal.kpis : goal.kpis.split('\n').filter(k => k.trim())).map((kpi, index) => (
+                  <li key={index} className="break-words">{typeof kpi === 'string' ? kpi.trim() : kpi}</li>
+                ))}
+              </ul>
             </div>
           )}
 
